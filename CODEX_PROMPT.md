@@ -1,0 +1,9 @@
+# Paste this as the first Codex task message
+
+Implement the **complete working MVP** described in `SPEC.md`. Read `AGENTS.md`, `SPEC.md`, and the screenshots under `reference/` first. The provided `legacy-stopwatch/` is only a prior prototype to reuse ideas from, not a required architecture. Start by orienting to the repository and briefly naming key implementation phases, then **write the app code**. Keep the UI Pomofocus-adjacent, calm, and extremely minimal; large focus countdown or upward break stopwatch; action labeled **Start**; no tasks or main-screen stats.
+
+Highest-risk functionality to get right: a 60-minute focus countdown that supports chipping away via pause/resume; precise manual pause vs browser-closed system interruption accounting; automatic break stopwatch with 15-minute allowance; Start during break auto-ends/logs it; overflow End Session; local 8:30 PM cutoff (even after browser closure); cloud persistence of detailed intervals/events; a restrained week→day→session metrics drilldown.
+
+Use React/TypeScript + Supabase as defined in the spec, with migrations, secure RLS, Google sign-in, avatar, JSON export, and `.env.example`. Write deterministic unit tests for the timing/state engine, integration tests for persistence, and high-value end-to-end tests. Run typecheck, tests and build; fix failures. Work in manageable stages but do not stop after stage one. If authentication setup requires my Supabase/Google credentials, fully implement the configuration and document exactly what I need to supply; don't claim a live deployment or working cloud authentication before it is configured.
+
+At completion, give me: (1) implemented features, (2) tests/build results, (3) screenshots or local preview instructions, (4) database/Auth/deployment setup steps, (5) honest known limitations and anything needing my action. Do not introduce out-of-scope features.
