@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react'
 import { current, recover, transition, type Action, type Settings } from './engine'
 import { cloud, demo, readRemote, zone } from './cloud'
-import { notifyFocusComplete, playSound, prepareSound, requestNotificationsOnStart } from './alerts'
+import { notifyTimer, playSound, prepareSound, requestNotificationsOnStart } from './alerts'
 import { hydrate, Persistence, type Journal } from './persistence'
+
+function announce(settings: Settings, event: Parameters<typeof notifyTimer>[0]) {
+  void playSound(settings.sound ?? 'chime').catch(() => {})
+  if (settings.notifications !== false) notifyTimer(event)
+}
 
 function announceCompletion(previous: Journal['state'], next: Journal['state']) {
   if (current(next).mode !== 'break_running' ||
       !next.events.slice(previous.events.length).some(event => event.type === 'focus_completed')) return
-  void playSound(next.settings.sound ?? 'chime').catch(() => {})
-  if (next.settings.notifications !== false) notifyFocusComplete()
+  announce(next.settings, 'focus-complete')
 }
 
 export function useTracker(account: string) {
@@ -47,6 +51,7 @@ export function useTracker(account: string) {
       reconcile()
       void store.flush()
       refresh()
+      let lastRenderAt = now()
       const render = () => {
         const at = now()
         const previous = store.journal.state
@@ -57,6 +62,12 @@ export function useTracker(account: string) {
         } else if (current(previous).mode.startsWith('focus') && at - previous.checkpoint >= 5000) {
           store.save({ ...previous, checkpoint: at }, true)
         }
+        const rest = current(next).cycle?.rest
+        if (rest && rest.allowance > 0) {
+          const allowanceEnd = rest.start + rest.allowance
+          if (lastRenderAt < allowanceEnd && allowanceEnd <= at) announce(next.settings, 'break-allowance')
+        }
+        lastRenderAt = at
         refresh()
       }
       const hide = () => {
@@ -68,6 +79,7 @@ export function useTracker(account: string) {
         if (!event.persisted) return
         wall = Date.now()
         monotonic = performance.now()
+        lastRenderAt = now()
         reconcile()
         refresh()
       }

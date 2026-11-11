@@ -44,9 +44,15 @@ export function requestNotificationsOnStart() {
   void Notification.requestPermission().catch(() => {})
 }
 
-export function notifyFocusComplete() {
+const messages = {
+  'focus-complete': { title: 'Focus time is up', body: 'Your break has started.' },
+  'break-allowance': { title: 'Break allowance ended', body: 'Your break timer is still counting. Start focus when you’re ready.' },
+}
+
+export function notifyTimer(tag: keyof typeof messages) {
   if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-    try { new Notification('Focus time is up', { body: 'Your break has started.', tag: 'focus-complete' }) }
+    const { title, body } = messages[tag]
+    try { new Notification(title, { body, tag }) }
     catch { /* Some mobile browsers require a service worker for notifications. */ }
   }
 }

@@ -64,8 +64,19 @@ dialog::backdrop { background: #090909a0; }
 .totals dt { color: var(--muted); font-size: .84rem; }
 .totals dd { margin: 4px 0 0; font-size: clamp(1rem, 4.2vw, 1.7rem); font-weight: 700; }
 .chart { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: clamp(0px, 1vw, 8px); }
-.chart button { display: grid; gap: 8px; justify-items: center; grid-template-rows: minmax(32px, auto) 120px auto; font-size: clamp(.66rem, 2.7vw, .88rem); background: none; border: 0; border-radius: 8px; color: inherit; padding: 6px 0; }
+.chart-day { position: relative; min-width: 0; }
+.chart button { width: 100%; display: grid; gap: 8px; justify-items: center; grid-template-rows: minmax(32px, auto) 120px auto; font-size: clamp(.66rem, 2.7vw, .88rem); background: none; border: 0; border-radius: 8px; color: inherit; padding: 6px 0; }
 .chart button:hover { background: #292929; }
+.chart-tooltip {
+  position: absolute; z-index: 2; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%);
+  visibility: hidden; pointer-events: none; width: 182px; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid var(--border); background: #292929; box-shadow: 0 4px 14px #0006;
+  font-size: .78rem; font-variant-numeric: tabular-nums;
+}
+.chart-tooltip span { display: flex; justify-content: space-between; gap: 6px; padding: 3px 0; }
+.chart-day:hover .chart-tooltip, .chart-day:focus-within .chart-tooltip { visibility: visible; }
+.chart-day:nth-child(-n+2) .chart-tooltip { left: 0; transform: none; }
+.chart-day:nth-last-child(-n+2) .chart-tooltip { left: auto; right: 0; transform: none; }
 .bar-track { display: flex; align-items: end; width: clamp(22px, 5vw, 42px); border-bottom: 1px solid var(--border); }
 .bar { display: flex; flex-direction: column; width: 100%; overflow: hidden; border-radius: 5px 5px 0 0; }
 .bar > span { flex-basis: 0; }

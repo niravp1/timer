@@ -88,7 +88,7 @@ function SettingsPage({ state, save }: { state: Tracker; save: (settings: Partia
       <label>Time zone<select name="zone" defaultValue={state.settings.zone}>{zones.map(zone => <option key={zone}>{zone}</option>)}</select></label>
       {current(state).block && <p className="split">Your current work block keeps its original cutoff. New focus and break targets apply from the next cycle.</p>}
       <div className="sound-setting">
-        <label>Focus completion sound<select value={sound} onChange={event => setSound(event.target.value as AlertSound)}>
+        <label>Timer alert sound<select value={sound} onChange={event => setSound(event.target.value as AlertSound)}>
           {Object.entries(sounds).map(([value, option]) => <option key={value} value={value}>{option.label}</option>)}
         </select></label>
         <button className="quiet" type="button" disabled={sound === 'silent'} onClick={() =>
@@ -106,7 +106,7 @@ function SettingsPage({ state, save }: { state: Tracker; save: (settings: Partia
         : <>
           <label className="checkbox"><input type="checkbox" checked={state.settings.notifications !== false}
               onChange={event => save({ notifications: event.target.checked })} />
-              Notify me when focus time is up</label>
+              Notify me when focus or the break allowance ends</label>
           {permission === 'default' && state.settings.notifications !== false &&
             <button className="quiet" onClick={enableNotifications}>Allow browser notifications</button>}
         </>}
@@ -146,6 +146,16 @@ function Workspace({ user }: { user: User | null }) {
   useEffect(() => { document.title = title }, [title])
   useEffect(() => () => { document.title = 'Focus' }, [])
   const sync = view?.store.status
+  const [showPending, setShowPending] = useState(false)
+  useEffect(() => {
+    if (sync !== 'pending') {
+      setShowPending(false)
+      return
+    }
+    const timer = window.setTimeout(() => setShowPending(true), 1800)
+    return () => window.clearTimeout(timer)
+  }, [sync])
+  const showSync = sync === 'conflict' || sync === 'unavailable' || (sync === 'pending' && showPending)
   return <>
     <header className="top">
       <details className="app-menu" ref={menu} onKeyDown={event => {
@@ -187,7 +197,7 @@ function Workspace({ user }: { user: User | null }) {
             const { error } = await cloud!.auth.signOut()
             if (error) setAuthError(error.message)
           }} />}
-        {sync !== 'saved' && <p className="sync" role="status">
+        {showSync && <p className="sync" role="status">
           {sync === 'pending' && 'Changes are waiting to sync.'}
           {sync === 'conflict' && 'This account changed elsewhere. Export this browser’s activity from Settings to keep a copy of unsynced changes.'}
           {sync === 'unavailable' && 'Browser storage is unavailable. Recent progress may be lost if you close this page.'}

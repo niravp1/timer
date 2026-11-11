@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Temporal } from '@js-temporal/polyfill'
 import { span, total, type Cycle, type Tracker } from './engine'
 import { report, weekOf } from './report'
-import { duration } from './time'
+import { breakClockText, duration } from './time'
 
 const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const dayLabel = (day: Temporal.PlainDate) => day.toLocaleString(undefined, { month: 'short', day: 'numeric' })
@@ -117,18 +117,26 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
     <div className="chart">{reports.map(({ focus, included, overage }, index) => {
       const covered = focus + included
       const tracked = covered + overage
-      return <button key={weekdays[index]}
-        aria-label={`${weekdays[index]}, ${dayLabel(days[index])}, ${duration(covered)} focus and included breaks, ${duration(overage)} extra break time`}
-        onClick={() => setDay(days[index])}>
-        <span>{duration(tracked)}</span>
-        <span className="bar-track" aria-hidden="true">
-          <span className="bar" style={{ height: `${100 * tracked / maximum}%` }}>
-            <span className="chart-extra" style={{ flexGrow: overage }} />
-            <span className="chart-included" style={{ flexGrow: covered }} />
+      const tooltipId = `day-breakdown-${index}`
+      return <div className="chart-day" key={weekdays[index]}>
+        <button aria-describedby={tooltipId}
+          aria-label={`${weekdays[index]}, ${dayLabel(days[index])}, ${duration(covered)} focus and included breaks, ${duration(overage)} extra break time`}
+          onClick={() => setDay(days[index])}>
+          <span>{duration(tracked)}</span>
+          <span className="bar-track" aria-hidden="true">
+            <span className="bar" style={{ height: `${100 * tracked / maximum}%` }}>
+              <span className="chart-extra" style={{ flexGrow: overage }} />
+              <span className="chart-included" style={{ flexGrow: covered }} />
+            </span>
           </span>
-        </span>
-        <span>{weekdays[index]}</span>
-      </button>
+          <span>{weekdays[index]}</span>
+        </button>
+        <div className="chart-tooltip" role="tooltip" id={tooltipId}>
+          <span>Focused <strong>{breakClockText(focus)}</strong></span>
+          <span>Included break <strong>{breakClockText(included)}</strong></span>
+          <span>Extra break <strong>{breakClockText(overage)}</strong></span>
+        </div>
+      </div>
     })}</div>
   </section>
 }

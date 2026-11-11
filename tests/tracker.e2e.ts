@@ -62,6 +62,8 @@ test('counts break up across reload and switches to the next focus with Start', 
   const monday = page.getByRole('button', { name: /^Mon,.*1h 15m focus and included breaks, 1h 15m extra break time$/ })
   await expect(monday).toBeVisible()
   await expect(monday.locator('.bar > span')).toHaveCount(2)
+  await monday.focus()
+  await expect(page.getByRole('tooltip')).toContainText('Included break 00:15:00')
   await expect(page.locator('.totals')).toContainText('Break time15m')
   await expect(page.locator('.totals')).toContainText('Extra time1h 15m')
 })
@@ -81,7 +83,7 @@ test('applies settings and exports stored activity as JSON', async ({ page }) =>
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
   await page.getByLabel('Focus target (minutes)').fill('25')
   await page.getByLabel('Included break (minutes)').fill('5')
-  await page.getByLabel('Focus completion sound').selectOption('bell')
+  await page.getByLabel('Timer alert sound').selectOption('bell')
   await page.getByRole('button', { name: 'Preview sound' }).click()
   await page.getByRole('button', { name: 'Save settings' }).click()
   await page.getByLabel('Menu').click()
@@ -103,7 +105,7 @@ test('applies settings and exports stored activity as JSON', async ({ page }) =>
   expect(backup.events.map((event: { type: string }) => event.type)).toEqual(['settings_changed', 'start'])
 })
 
-test('requests permission on Start and sends one notification by default', async ({ page }) => {
+test('notifies once at focus completion and once at the break allowance', async ({ page }) => {
   await page.addInitScript(() => {
     const alerts: string[] = []
     Object.assign(window, { focusAlerts: alerts })
@@ -120,7 +122,7 @@ test('requests permission on Start and sends one notification by default', async
   await page.reload()
   await page.getByLabel('Menu').click()
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
-  await expect(page.getByRole('checkbox', { name: 'Notify me when focus time is up' })).toBeChecked()
+  await expect(page.getByRole('checkbox', { name: 'Notify me when focus or the break allowance ends' })).toBeChecked()
   await page.getByLabel('Menu').click()
   await page.getByRole('button', { name: 'Focus', exact: true }).click()
   await page.getByRole('button', { name: 'Start', exact: true }).click()
@@ -129,4 +131,12 @@ test('requests permission on Start and sends one notification by default', async
   await expect(page.getByRole('heading', { name: 'Break', exact: true })).toBeVisible()
   await page.clock.fastForward(60_000)
   expect(await page.evaluate(() => Reflect.get(window, 'focusAlerts'))).toEqual(['Focus time is up'])
+  await page.clock.fastForward(14 * 60_000)
+  await expect(page.getByRole('timer')).toHaveText(/^00:15:0/)
+  await page.clock.fastForward(60_000)
+  await expect(page.getByRole('timer')).toHaveText(/^00:16:0/)
+  expect(await page.evaluate(() => Reflect.get(window, 'focusAlerts'))).toEqual(['Focus time is up', 'Break allowance ended'])
+  await page.reload()
+  await expect(page.getByRole('timer')).toHaveText(/^00:16:0/)
+  expect(await page.evaluate(() => Reflect.get(window, 'focusAlerts'))).toEqual([])
 })

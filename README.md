@@ -39,7 +39,7 @@ Sign in with Google on the deployed URL. Start and end a focus session, wait for
 
 ## Completion alerts
 
-Under **Menu → Settings**, choose Soft chime, Double bell, or Silent. Use **Preview sound** to hear the current selection and **Save settings** to keep it. Focus completion notifications are on by default. Allow the browser permission prompt when you first press Start, or grant permission from Settings. You can turn notifications off in Settings. Delivery depends on browser and OS settings and requires the page to remain open. Some mobile browsers do not support notifications sent directly by a page.
+Under **Menu → Settings**, choose Soft chime, Double bell, or Silent. Use **Preview sound** to hear the current selection and **Save settings** to keep it. Notifications for focus completion and the end of the included break are on by default. The break keeps counting after its alert. Allow the browser permission prompt when you first press Start, or grant permission from Settings. You can turn notifications off in Settings. Delivery depends on browser and OS settings and requires the page to remain open. Some mobile browsers do not support notifications sent directly by a page.
 
 Use **Menu → End Session** while focus or a break is active, then confirm.
 
