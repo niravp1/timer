@@ -4,7 +4,7 @@ Version: 1.0 | Date: 2026-11-10 | Status: approved requirements for implementati
 
 ## 0. Objective
 
-Build an intentionally minimal, production-quality, responsive personal Pomodoro web app. Inspired by the simple composition and large timer of the **user-provided Pomofocus screenshot** in `reference/pomofocus-user-reference.png`, but visually calmer and more polished. The UI should ask for almost no ongoing interaction: press **Start** to work; the 60-minute countdown leads automatically into an upward-counting break; pressing **Start** during the break saves it and starts another focus session. Pauses, breaks, extra time, and accurate timestamps are logged automatically. A hidden **End Session** action is available when leaving for hours. An 8:30 PM local cutoff ends tracking every day.
+Build an intentionally minimal, production-quality, responsive personal Pomodoro web app. Inspired by the simple composition and large timer of the **Pomofocus-inspired layout** described in `reference/DESIGN.md`, but visually calmer and more polished. The UI should ask for almost no ongoing interaction: press **Start** to work; the 60-minute countdown leads automatically into an upward-counting break; pressing **Start** during the break saves it and starts another focus session. Pauses, breaks, extra time, and accurate timestamps are logged automatically. A hidden **End Session** action is available when leaving for hours. An 8:30 PM local cutoff ends tracking every day.
 
 **North star:** One primary action. One large timer. Three quiet screens (Focus, Metrics, Settings/Profile). Detailed event data under the hood, minimal metrics on the surface.
 
@@ -163,7 +163,7 @@ Store session setting snapshots, correct time zone and derived local day, end re
 
 ## 6. Visual design contract
 
-Reference: `reference/pomofocus-user-reference.png` (user-supplied); older iPhone-style lap screenshot `reference/stopwatch-laps-reference.png` (logic/history reference). Do not imitate the Pomofocus layout's extra “Short Break/Long Break” tabs, tasks, or crowded Report/Settings controls.
+Reference: `reference/DESIGN.md` and https://pomofocus.io/ (layout inspiration); older iPhone-style stopwatch logic is available under `legacy-stopwatch/`. Do not imitate the Pomofocus layout's extra “Short Break/Long Break” tabs, tasks, or crowded Report/Settings controls.
 
 **Tone:** sophisticated, calm, eye-friendly, centered, spacious, readable. Warm off-white background, lightly contrasted panel, dark charcoal type, muted sage-green primary action, minimal shadows. Example design tokens to tune visually: `--bg:#F5F6F3`, `--surface:#FFFFFF`, `--text:#25302E`, `--muted:#717B78`, `--border:#E2E7E2`, `--primary:#3E7064`, `--primary-hover:#305B52`; metric-only secondary accents muted amber `#CE9B58`, soft blue `#6D90B0`, red/clay for overage `#C6776C`. Use high contrast and keyboard focus styles. These are *guidance*, not a rigid requirement.
 
