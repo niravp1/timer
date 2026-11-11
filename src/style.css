@@ -1,20 +1,21 @@
 :root {
+  color-scheme: dark;
   font-family: Inter, system-ui, sans-serif;
-  color: #24312d;
-  background: #f5f6f3;
+  color: #e5eee9;
+  background: #151b19;
   font-synthesis: none;
-  --surface: #fff;
-  --border: #dce5de;
-  --muted: #53655c;
-  --primary: #356557;
-  --accent: #537e70;
+  --surface: #202824;
+  --border: #37443d;
+  --muted: #a4b7ad;
+  --primary: #a8d6bf;
+  --accent: #7cae98;
 }
 * { box-sizing: border-box; }
 body { margin: 0; }
 button, input, select { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: default; opacity: .58; }
-:focus-visible { outline: 3px solid #2f7768; outline-offset: 4px; }
+:focus-visible { outline: 3px solid #a8d6bf; outline-offset: 4px; }
 button, summary, input, select { min-height: 44px; }
 h1, h2, p { margin-top: 0; }
 h1 { margin-bottom: .4em; font-size: 1.8rem; letter-spacing: -.035em; }
@@ -27,11 +28,11 @@ p { line-height: 1.55; }
 .top nav, .week-nav, .profile-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .brand { font-size: 1.04rem; font-weight: 720; letter-spacing: -.025em; padding: 0; color: inherit; background: transparent; border: 0; }
 .quiet { color: var(--primary); font-weight: 650; background: transparent; border: 0; border-radius: 8px; padding: 8px 12px; }
-.quiet:hover, .quiet[aria-current] { background: #e7eee8; }
+.quiet:hover, .quiet[aria-current] { background: #303e37; }
 .avatar {
   display: inline-grid; place-items: center; width: 44px; height: 44px;
   border-radius: 50%; border: 1px solid var(--border); overflow: hidden; padding: 0;
-  color: var(--primary); background: #e9f0ea; font-weight: 650;
+  color: var(--primary); background: #29372f; font-weight: 650;
 }
 .avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .focus-page { display: grid; justify-items: center; align-content: start; padding: clamp(44px, 12vh, 128px) 16px 40px; }
@@ -39,7 +40,7 @@ p { line-height: 1.55; }
 .timer-panel {
   width: min(100%, 540px); position: relative; text-align: center;
   background: var(--surface); border: 1px solid var(--border); border-radius: 22px;
-  padding: clamp(44px, 9vw, 66px) 18px 46px; box-shadow: 0 12px 40px #23382909;
+  padding: clamp(44px, 9vw, 66px) 18px 46px; box-shadow: 0 12px 40px #0004;
 }
 .timer-panel h1 {
   font-size: .82rem; letter-spacing: .16em; text-transform: uppercase;
@@ -47,17 +48,17 @@ p { line-height: 1.55; }
 }
 .auth h1 { font-size: 1.75rem; text-transform: none; letter-spacing: -.025em; margin-bottom: 24px; }
 .digits { font-size: clamp(3.65rem, 14vw, 7.6rem); line-height: 1; font-weight: 700; letter-spacing: -.07em; font-variant-numeric: tabular-nums; }
-.timer-note { color: #895244; height: 1.5rem; margin: 10px 0 16px; font-variant-numeric: tabular-nums; }
-.primary { border: 0; border-radius: 10px; background: var(--primary); color: white; padding: 11px 20px; font-weight: 700; }
-.primary:hover:not(:disabled) { background: #294e43; }
+.timer-note { color: #edab97; height: 1.5rem; margin: 10px 0 16px; font-variant-numeric: tabular-nums; }
+.primary { border: 0; border-radius: 10px; background: #b3dfc9; color: #162b21; padding: 11px 20px; font-weight: 700; }
+.primary:hover:not(:disabled) { background: #a0d4b9; }
 .timer-action { min-width: 156px; min-height: 50px; font-size: 1.05rem; }
 .overflow { position: absolute; top: 10px; right: 12px; }
 .overflow summary { list-style: none; display: grid; place-items: center; width: 44px; cursor: pointer; border-radius: 8px; color: var(--muted); font-size: 1.55rem; }
 .overflow summary::-webkit-details-marker { display: none; }
-.overflow summary:hover { background: #edf1ed; }
-.overflow button { position: absolute; right: 0; top: 44px; white-space: nowrap; padding: 8px 14px; color: inherit; background: white; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 24px #23382913; }
+.overflow summary:hover { background: #303e37; }
+.overflow button { position: absolute; right: 0; top: 44px; white-space: nowrap; padding: 8px 14px; color: inherit; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 24px #0005; }
 dialog { width: min(90vw, 390px); border: 1px solid var(--border); color: inherit; border-radius: 16px; padding: 24px; text-align: left; }
-dialog::backdrop { background: #18251e70; }
+dialog::backdrop { background: #070b09a0; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .content-page { max-width: 780px; margin: 32px auto 60px; padding: 0 16px; }
 .report { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: clamp(16px, 4vw, 36px); }
@@ -69,7 +70,7 @@ dialog::backdrop { background: #18251e70; }
 .totals dd { margin: 4px 0 0; font-size: clamp(1rem, 4.2vw, 1.7rem); font-weight: 700; }
 .chart { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: clamp(0px, 1vw, 8px); }
 .chart button { display: grid; gap: 8px; justify-items: center; grid-template-rows: minmax(32px, auto) 120px auto; font-size: clamp(.66rem, 2.7vw, .88rem); background: none; border: 0; border-radius: 8px; color: inherit; padding: 6px 0; }
-.chart button:hover { background: #eff4ef; }
+.chart button:hover { background: #29372f; }
 .bar-track { display: flex; align-items: end; width: clamp(14px, 4vw, 32px); border-bottom: 1px solid var(--border); }
 .bar { width: 100%; background: var(--accent); border-radius: 5px 5px 0 0; }
 .split { font-size: .9rem; }
@@ -86,7 +87,7 @@ dialog::backdrop { background: #18251e70; }
 .intervals { padding: 0; list-style: none; font-size: .88rem; }
 .settings form, .profile { display: grid; gap: 14px; justify-items: start; margin-bottom: 24px; }
 .settings label { display: grid; width: min(100%, 360px); gap: 6px; font-weight: 620; }
-.settings input, .settings select { min-width: 0; max-width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px; background: white; color: inherit; }
+.settings input, .settings select { min-width: 0; max-width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px; background: var(--surface); color: inherit; }
 .profile > * { margin: 0; }
 @media (max-width: 420px) {
   .top nav, .week-nav { gap: 4px; }
