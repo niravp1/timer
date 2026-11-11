@@ -146,16 +146,27 @@ function Workspace({ user }: { user: User | null }) {
   useEffect(() => { document.title = title }, [title])
   useEffect(() => () => { document.title = 'Focus' }, [])
   const sync = view?.store.status
-  const [showPending, setShowPending] = useState(false)
-  useEffect(() => {
-    if (sync !== 'pending') {
-      setShowPending(false)
-      return
+  const [restoring, setRestoring] = useState(false)
+  const showSync = sync === 'conflict' || sync === 'unavailable' || sync === 'pending'
+  async function restoreCloud() {
+    if (!view || restoring) return
+    setRestoring(true)
+    setAuthError('')
+    try {
+      const backup = new Blob([JSON.stringify(view.store.journal.state, null, 2)], { type: 'application/json' })
+      await view.store.restoreCloud()
+      const url = URL.createObjectURL(backup)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'focus-tracker-sync-backup.json'
+      link.click()
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch {
+      setAuthError('Could not load cloud history. Your local changes are still here.')
+    } finally {
+      setRestoring(false)
     }
-    const timer = window.setTimeout(() => setShowPending(true), 1800)
-    return () => window.clearTimeout(timer)
-  }, [sync])
-  const showSync = sync === 'conflict' || sync === 'unavailable' || (sync === 'pending' && showPending)
+  }
   return <>
     <header className="top">
       <details className="app-menu" ref={menu} onKeyDown={event => {
@@ -197,11 +208,17 @@ function Workspace({ user }: { user: User | null }) {
             const { error } = await cloud!.auth.signOut()
             if (error) setAuthError(error.message)
           }} />}
-        {showSync && <p className="sync" role="status">
-          {sync === 'pending' && 'Changes are waiting to sync.'}
-          {sync === 'conflict' && 'This account changed elsewhere. Export this browser’s activity from Settings to keep a copy of unsynced changes.'}
+        {sync === 'conflict' && page !== 'settings' && <button className="quiet sync" onClick={() => setPage('settings')}>
+          Cloud sync needs attention
+        </button>}
+        {(page === 'settings' || sync === 'unavailable') && showSync && <div className="sync" role="status">
+          {sync === 'pending' && 'Cloud backup is pending. Changes are saved in this browser.'}
+          {sync === 'conflict' && <>
+            <p>This browser and the cloud have overlapping changes. Save a backup of this browser’s activity before reopening cloud history.</p>
+            <button className="quiet" disabled={restoring} onClick={() => void restoreCloud()}>Back up and use cloud history</button>
+          </>}
           {sync === 'unavailable' && 'Browser storage is unavailable. Recent progress may be lost if you close this page.'}
-        </p>}
+        </div>}
       </>}
       {authError && <p role="alert">{authError}</p>}
     </main>

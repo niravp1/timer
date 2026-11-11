@@ -5,7 +5,7 @@ import type { Batch, Remote } from '../src/cloud'
 import { defaults, initial, transition } from '../src/engine'
 import { hydrate, Persistence } from '../src/persistence'
 
-const users = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()]
+const users = Array.from({ length: 4 }, () => crypto.randomUUID())
 const settings = defaults('UTC')
 const at = Date.parse('2026-11-09T10:00:00Z')
 let db: PGlite
@@ -114,4 +114,47 @@ describe('cloud persistence and account isolation', () => {
     expect((await read()).state).toEqual(paused)
     expect(hydrate(undefined, await read(), 'UTC').state).toEqual(paused)
   })
+
+  it('syncs a disjoint local session after the cloud revision advances', async () => {
+    await asUser(users[1])
+    vi.stubGlobal('localStorage', { setItem: vi.fn() })
+    const stale = await read()
+    const createSession = (start: number) => {
+      const running = transition(initial(settings), { type: 'start', at: start, id: crypto.randomUUID() })
+      return transition(running, { type: 'end_session', at: start + 1000, id: crypto.randomUUID() })
+    }
+    const cloudSession = createSession(at)
+    await write({ id: crypto.randomUUID(), revision: stale.revision, settings, checkpoint: cloudSession.checkpoint,
+      blocks: cloudSession.blocks, events: cloudSession.events })
+
+    const store = new Persistence('tracker', hydrate(undefined, stale, 'UTC'), false, () => {}, write, read)
+    const localSession = createSession(at + 3000)
+    store.save(localSession)
+    await vi.waitFor(() => expect(store.journal.revision).toBe(stale.revision + 2))
+    expect((await read()).state?.blocks.map(block => block.id)).toEqual([
+      cloudSession.blocks[0].id, localSession.blocks[0].id,
+    ])
+  })
+
+  it('preserves an overlapping local session for backup rather than replacing cloud activity', async () => {
+    await asUser(users[3])
+    const running = transition(initial(settings), { type: 'start', at, id: crypto.randomUUID() })
+    const cloudSession = transition(running, { type: 'end_session', at: at + 1000, id: crypto.randomUUID() })
+    await write({ id: crypto.randomUUID(), revision: 0, settings, checkpoint: cloudSession.checkpoint,
+      blocks: cloudSession.blocks, events: cloudSession.events })
+    const cache = new Map<string, string>()
+    vi.stubGlobal('localStorage', { setItem: (key: string, value: string) => cache.set(key, value) })
+    const stale = hydrate(undefined, { revision: 0, state: null, avatar: null }, 'UTC')
+    const local = transition(stale.state, { type: 'start', at, id: crypto.randomUUID() })
+    const store = new Persistence('tracker', stale, false, () => {}, write, read)
+    store.save(local)
+    await vi.waitFor(() => expect(store.status).toBe('conflict'))
+    expect(store.journal.state).toEqual(local)
+    const cloudBefore = await read()
+    await store.restoreCloud()
+    expect(store.journal.state).toEqual(cloudBefore.state)
+    expect(JSON.parse(cache.get('tracker:sync-backup')!).state).toEqual(local)
+    expect(await read()).toEqual(cloudBefore)
+  })
+
 })

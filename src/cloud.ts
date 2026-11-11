@@ -20,7 +20,7 @@ export async function readRemote(): Promise<Remote> {
 }
 
 export async function writeRemote(batch: Batch): Promise<number> {
-  const { data, error } = await cloud!.rpc('write_tracker', { batch })
+  const { data, error } = await cloud!.rpc('write_tracker', { batch }).retry(false)
   if (error) throw error
   return data
 }
