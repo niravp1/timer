@@ -1,38 +1,49 @@
-# Focus Tracker — Codex implementation handoff
+# Focus Tracker
 
-**Status:** Specification and implementation references are committed. The new application is **not yet built**.
+A personal focus and break timer with Google sign-in, private account history, and weekly metrics.
 
-This repository is intended for an OpenAI Codex coding task. The product is a calm, Pomofocus-adjacent personal focus and break tracker, not a conventional Pomodoro task manager.
+## Preview and verify locally
 
-## Start the build in Codex
+Use Node 22.12+ on the Node 22 release line, or Node 24 or 26.
 
-1. Open **https://chatgpt.com/codex** and select a GitHub-connected **cloud** coding task.
-2. Select repository **`niravp1/timer`**, branch **`main`**. If the repository doesn't appear, configure Codex's GitHub access to include it.
-3. Copy the task instructions in **[`CODEX_PROMPT.md`](CODEX_PROMPT.md)** into the prompt and submit.
-4. Let Codex implement, run tests, and propose changes. Review its diff/PR before merging.
-5. After the code is ready, follow Codex's Supabase Google OAuth/database setup and deployment instructions. **Never commit environment secrets**.
+```sh
+npm ci
+npm run dev
+```
 
-## Product specifications
+Open the local URL printed by Vite. With no Supabase variables configured, the dev server uses a local browser fixture. Start a timer, pause or reload it, then open **Metrics** to drill down from week to day to session. The fixture is available only in development.
 
-- [`SPEC.md`](SPEC.md) — authoritative MVP behavior, data schema, edge cases, metrics, and UI requirements.
-- [`AGENTS.md`](AGENTS.md) — repository-wide Codex instructions and constraints.
-- [`TEST_SCENARIOS.md`](TEST_SCENARIOS.md) — acceptance test examples.
-- [`reference/DESIGN.md`](reference/DESIGN.md) — textual UI design reference; original screenshot images are available in the separate chat ZIP.
-- [`legacy-stopwatch/`](legacy-stopwatch/) — old standalone stopwatch prototype, for reference only.
+```sh
+npm run typecheck
+npm test
+npx playwright install chromium
+npm run test:e2e
+npm run build
+```
 
-## Intended UX
+Vitest runs the timer and reporting tests, and applies the actual migration to embedded PostgreSQL with Supabase-compatible auth and storage test fixtures. Playwright exercises the local fixture on desktop and mobile Chromium. To preview the compiled app with real authentication, configure the variables below before building, then run `npm run preview`. Without configuration, the production app shows a setup message.
 
-- A single large 60-minute (configurable) focus countdown with **Start**, **Pause**, and **Resume**.
-- When focus completes, an upward-counting break stopwatch starts automatically. Break overage begins after a configurable 15-minute allowance.
-- Starting focus from a break logs the break automatically.
-- Hidden **End Session** ends tracking without an accidental extra-long break.
-- After the configurable **8:30 PM** cutoff, all tracking stops for the local day.
-- Focus pauses when the page closes or reloads; time away is separately tracked instead of counted as manual-pause extra time. Break stopwatch keeps wall-clock time until cutoff or manual closure.
-- Minimal **Metrics** tab with Week → Day → Session detail, and richer raw event logs under the hood.
-- User-specific private cloud storage via Supabase, with no cross-device live synchronization in MVP.
+## Configure Supabase and Google sign-in
 
-## Important notes
+1. Create a Supabase project. In its SQL Editor, run [the Focus Tracker migration](supabase/migrations/202611110001_focus_tracker.sql) once. It creates the tracker tables, RLS policies, transactional RPCs, and private `avatars` bucket.
+2. In Google Cloud, configure the OAuth consent screen and create an OAuth client of type **Web application**. If the app is in testing, add your Google account as a test user. Add the Google callback URL displayed in the Supabase Google provider setup as an **Authorized redirect URI**. It normally looks like `https://<project-ref>.supabase.co/auth/v1/callback`. [Supabase Google setup](https://supabase.com/docs/guides/auth/social-sign-in/auth-google)
+3. In Supabase, enable the Google provider and enter the Google OAuth client ID and secret. Keep the secret in Supabase.
+4. In Supabase **Auth → URL Configuration**, set **Site URL** to the deployed app origin. Add the exact allowed origins for local development and production, such as `http://localhost:5173` and `https://focus.example.com`. Add `http://localhost:4173` if you use the Vite preview there. The app uses the current origin as its post-login redirect. [Supabase redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls)
+5. Copy `.env.example` to `.env.local`. Set `VITE_SUPABASE_URL` to the project URL and `VITE_SUPABASE_PUBLISHABLE_KEY` to its publishable or legacy anon key. Client build variables are public. Keep service-role keys and OAuth secrets out of these files and the frontend.
 
-- Nothing here is deployed, and no Supabase or OAuth credentials are configured yet.
-- A Google account, cloud database project, or Vercel setup may require manual authorization.
-- The repository may be public; never commit confidential data, private API keys, or service-role keys.
+## Deploy and smoke-test
+
+Use Vite on your static host with `npm ci`, `npm run build`, and output directory `dist`. Supply both public variables in the host's build environment, then add the deployed HTTPS origin to Supabase's redirect list.
+
+Sign in with Google on the deployed URL. Start and end a focus session, wait for the pending-sync notice to clear, then sign in from a fresh browser context and check that the session appears in Metrics. Test uploading an avatar, downloading JSON, and signing out. A configured Supabase project and Google OAuth client are required for this live smoke test.
+
+## How tracking and sync work
+
+- Start during a break closes that break and starts the next focus cycle at the same timestamp. Each cycle snapshots its focus target and break allowance. Each work block snapshots the time zone and cutoff at its start. Metrics use the current reporting time zone.
+- Closing or reloading during focus records the observed `pagehide` boundary when the browser delivers it. If the browser crashes or kills the page, recovery uses the last saved checkpoint and marks the boundary as inferred. The five-second checkpoint cadence can be delayed by browser throttling. A cloud-only recovery uses the most recent acknowledged transition. Breaks continue across closure and stop at the exact cutoff, reconciled when the browser returns.
+- Timer calculations use a monotonic clock while the page is active and UTC wall time across page loads. Large wall-clock corrections across visits and browsers that pause their monotonic clock during device sleep can affect timing.
+- PostgreSQL stores UTC timestamps and structured cycles and intervals in one document per work block, plus separate append-only activity events. The write RPC validates interval continuity, checks the account revision, and commits the updated blocks, events, and receipt in one transaction. A retried batch returns its original receipt.
+- A browser journal stores transitions locally and retries after temporary sync failures. Use one active browser per account. Browsers with Web Locks also prevent a second tab from opening the same tracker. A stale writer cannot overwrite newer cloud history. If a conflict occurs, export the local copy before clearing this site's browser storage and reopening the account. Pending local changes can be lost if browser storage is cleared before they sync.
+- JSON exports include the activity available in the current browser, settings, interval boundaries, and event timestamps in UTC epoch milliseconds. History is read-only in the UI.
+
+See [SPEC.md](SPEC.md) for the product contract and [TEST_SCENARIOS.md](TEST_SCENARIOS.md) for timing examples.
