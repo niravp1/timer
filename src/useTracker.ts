@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react'
 import { current, recover, transition, type Action, type Settings } from './engine'
 import { cloud, demo, readRemote, zone } from './cloud'
+import { notifyFocusComplete, playSound, prepareSound } from './alerts'
 import { hydrate, Persistence, type Journal } from './persistence'
+
+function announceCompletion(previous: Journal['state'], next: Journal['state']) {
+  if (current(next).mode !== 'break_running' ||
+      !next.events.slice(previous.events.length).some(event => event.type === 'focus_completed')) return
+  void playSound(next.settings.sound ?? 'chime').catch(() => {})
+  if (next.settings.notifications) notifyFocusComplete()
+}
 
 export function useTracker(account: string) {
   const [view, setView] = useState<{ store: Persistence; at: number; now: () => number; avatar: string | null }>()
@@ -43,8 +51,10 @@ export function useTracker(account: string) {
         const at = now()
         const previous = store.journal.state
         const next = transition(previous, { type: 'tick', at, id: crypto.randomUUID() })
-        if (next !== previous) store.save(next)
-        else if (current(previous).mode.startsWith('focus') && at - previous.checkpoint >= 5000) {
+        if (next !== previous) {
+          store.save(next)
+          announceCompletion(previous, next)
+        } else if (current(previous).mode.startsWith('focus') && at - previous.checkpoint >= 5000) {
           store.save({ ...previous, checkpoint: at }, true)
         }
         refresh()
@@ -95,6 +105,9 @@ export function useTracker(account: string) {
 
   function dispatch(type: Exclude<Action['type'], 'tick' | 'settings_changed'> | 'settings_changed', settings?: Settings) {
     if (!view) return
+    if ((type === 'start' || type === 'resume') && view.store.journal.state.settings.sound !== 'silent') {
+      void prepareSound().catch(() => {})
+    }
     // Reuse the page clock for button events without quantizing to the render interval.
     const at = view.now()
     const id = crypto.randomUUID()
@@ -103,6 +116,7 @@ export function useTracker(account: string) {
     const next = transition(previous, action)
     if (next !== previous) {
       view.store.save(next)
+      announceCompletion(previous, next)
       setView({ ...view })
     }
   }

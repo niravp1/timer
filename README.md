@@ -11,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite. With no Supabase variables configured, the dev server uses a local browser fixture. Start a timer, pause or reload it, then open **Metrics** to drill down from week to day to session. The fixture is available only in development.
+Open the local URL printed by Vite. With no Supabase variables configured, the dev server uses a local browser fixture. Start a timer, pause or reload it, then use **Menu → Metrics** to drill down from week to day to session. The fixture is available only in development.
 
 ```sh
 npm run typecheck
@@ -36,6 +36,12 @@ Vitest runs the timer and reporting tests, and applies the actual migration to e
 Use Vite on your static host with `npm ci`, `npm run build`, and output directory `dist`. Supply both public variables in the host's build environment, then add the deployed HTTPS origin to Supabase's redirect list.
 
 Sign in with Google on the deployed URL. Start and end a focus session, wait for the pending-sync notice to clear, then sign in from a fresh browser context and check that the session appears in Metrics. Test uploading an avatar, downloading JSON, and signing out. A configured Supabase project and Google OAuth client are required for this live smoke test.
+
+## Completion alerts
+
+Under **Menu → Settings**, choose Soft chime, Double bell, or Silent. Use **Preview sound** to hear the current selection and **Save settings** to keep it. To receive a desktop notification when focus completes, enable browser notifications and allow them for the site. Delivery depends on browser and OS settings and requires the page to remain open. Some mobile browsers do not support notifications sent directly by a page.
+
+Use **Menu → End Session** while focus or a break is active, then confirm.
 
 ## How tracking and sync work
 

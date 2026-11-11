@@ -6,14 +6,13 @@ import { current, span, startLocked, total, type Settings, type Tracker } from '
 import { clockText, minute } from './time'
 import { Metrics } from './Metrics'
 import { useTracker } from './useTracker'
+import { playSound, sounds, type AlertSound } from './alerts'
 import './style.css'
 
 function Focus({ state, at, dispatch }: {
   state: Tracker; at: number; dispatch: ReturnType<typeof useTracker>['dispatch']
 }) {
   const { cycle, mode, interval } = current(state)
-  const dialog = useRef<HTMLDialogElement>(null)
-  const menu = useRef<HTMLDetailsElement>(null)
   const locked = (mode === 'idle' || mode === 'break_running') && startLocked(state, at)
   const rest = cycle?.rest
   const elapsed = rest ? span(rest, at) : 0
@@ -23,38 +22,39 @@ function Focus({ state, at, dispatch }: {
     : mode === 'focus_paused' ? (interval?.kind === 'system_interruption' ? 'Paused while away' : 'Paused')
     : locked ? 'Finished for today' : 'Focus'
   return <section className="timer-panel" aria-label="Focus timer">
-    {mode !== 'idle' && <details className="overflow" ref={menu}>
-      <summary aria-label="Session options">⋯</summary>
-      <button onClick={() => { menu.current!.open = false; dialog.current!.showModal() }}>End Session</button>
-    </details>}
     <h1 aria-live="polite">{status}</h1>
     <div className="digits" role="timer">{clockText(rest ? elapsed : remaining, !!rest)}</div>
     <div className="timer-note">{rest && elapsed > rest.allowance ? `+${clockText(elapsed - rest.allowance, true)} extra` : ''}</div>
     <button className="primary timer-action" disabled={locked} onClick={() => {
       dispatch(label === 'Start' ? 'start' : label === 'Pause' ? 'pause' : 'resume')
     }}>{label}</button>
-    <dialog ref={dialog} aria-labelledby="end-heading">
-      <h2 id="end-heading">End session?</h2>
-      <p>Your progress will be saved, and tracking will stop.</p>
-      <form method="dialog" className="dialog-actions">
-        <button className="quiet" autoFocus>Cancel</button>
-        <button className="primary" onClick={() => dispatch('end_session')}>End Session</button>
-      </form>
-    </dialog>
   </section>
 }
 
 function Profile({ state, user, image, setImage, save, signOut }: {
   state: Tracker; user: User | null; image?: string; setImage: (image?: string) => void
-  save: (settings: Settings) => void; signOut: () => void
+  save: (settings: Partial<Settings>) => void; signOut: () => void
 }) {
   const [message, setMessage] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [sound, setSound] = useState<AlertSound>(state.settings.sound ?? 'chime')
+  const [permission, setPermission] = useState(() =>
+    typeof Notification === 'undefined' ? 'unsupported' : Notification.permission)
+  const enableNotifications = async () => {
+    try {
+      const result = await Notification.requestPermission()
+      setPermission(result)
+      if (result === 'granted') {
+        save({ notifications: true })
+        setMessage('Browser notifications enabled.')
+      } else if (result === 'default') setMessage('Notification permission was skipped.')
+    } catch { setMessage('This browser could not enable notifications.') }
+  }
   const zones = [...new Set([state.settings.zone, 'UTC', ...Intl.supportedValuesOf('timeZone')])].sort()
   const onSave = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
-    save({ target: Number(form.get('target')) * minute, allowance: Number(form.get('allowance')) * minute,
+    save({ sound, target: Number(form.get('target')) * minute, allowance: Number(form.get('allowance')) * minute,
       zone: String(form.get('zone')), time: String(form.get('cutoff')) })
     setMessage('Settings updated.')
   }
@@ -76,8 +76,28 @@ function Profile({ state, user, image, setImage, save, signOut }: {
       <label>Daily cutoff<input name="cutoff" type="time" required defaultValue={state.settings.time} /></label>
       <label>Time zone<select name="zone" defaultValue={state.settings.zone}>{zones.map(zone => <option key={zone}>{zone}</option>)}</select></label>
       {current(state).block && <p className="split">Your current work block keeps its original cutoff. New focus and break targets apply from the next cycle.</p>}
+      <div className="sound-setting">
+        <label>Focus completion sound<select value={sound} onChange={event => setSound(event.target.value as AlertSound)}>
+          {Object.entries(sounds).map(([value, option]) => <option key={value} value={value}>{option.label}</option>)}
+        </select></label>
+        <button className="quiet" type="button" disabled={sound === 'silent'} onClick={() =>
+          void playSound(sound).catch(() => setMessage('This browser could not play the sound.'))
+        }>Preview sound</button>
+      </div>
       <button className="primary">Save settings</button>
     </form>
+    <div className="profile">
+      <h2>Browser notifications</h2>
+      {permission === 'unsupported' || typeof Notification.requestPermission !== 'function'
+        ? <p>This browser does not support desktop notifications.</p>
+        : permission === 'denied'
+        ? <p>Allow notifications for this site in your browser settings, then reload.</p>
+        : permission === 'granted'
+        ? <label className="checkbox"><input type="checkbox" checked={!!state.settings.notifications}
+            onChange={event => save({ notifications: event.target.checked })} />
+            Notify me when focus time is up</label>
+        : <button className="quiet" onClick={enableNotifications}>Enable browser notifications</button>}
+    </div>
     {user && <div className="profile">
       <h2>Profile</h2>
       <p>{user.email}</p>
@@ -102,6 +122,12 @@ function Profile({ state, user, image, setImage, save, signOut }: {
 function Workspace({ user }: { user: User | null }) {
   const { view, dispatch, error, retry } = useTracker(user?.id ?? 'demo')
   const [page, setPage] = useState('focus')
+  const menu = useRef<HTMLDetailsElement>(null)
+  const dialog = useRef<HTMLDialogElement>(null)
+  function closeMenu() {
+    if (menu.current) menu.current.open = false
+    menu.current?.querySelector('summary')?.focus()
+  }
   const [image, setImage] = useState<string>()
   const [authError, setAuthError] = useState('')
   const [uploaded, setUploaded] = useState(false)
@@ -120,19 +146,36 @@ function Workspace({ user }: { user: User | null }) {
   const sync = view?.store.status
   return <>
     <header className="top">
-      <button className="brand" onClick={() => setPage('focus')} aria-current={page === 'focus' ? 'page' : undefined}>Focus Tracker</button>
-      <nav aria-label="Main navigation">
-        <button className="quiet" onClick={() => setPage('metrics')} aria-current={page === 'metrics' ? 'page' : undefined}>Metrics</button>
-        <button className="avatar" aria-label="Settings" aria-current={page === 'settings' ? 'page' : undefined} onClick={() => setPage('settings')}>
-          {image ? <img src={image} alt="" /> : (user?.email?.[0].toUpperCase() ?? '⚙')}
-        </button>
-      </nav>
+      <details className="app-menu" ref={menu} onKeyDown={event => {
+        if (event.key === 'Escape' && menu.current?.open) closeMenu()
+      }} onBlur={event => {
+        if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false
+      }}>
+        <summary aria-label="Menu"><span aria-hidden="true" className="hamburger" /></summary>
+        <nav aria-label="Main navigation">
+          {['Focus', 'Metrics', 'Settings'].map(label => <button className="quiet" key={label}
+            aria-current={page === label.toLowerCase() ? 'page' : undefined}
+            onClick={() => { setPage(label.toLowerCase()); closeMenu() }}>{label}</button>)}
+          {state && current(state).mode !== 'idle' && <button className="quiet" onClick={() => {
+            closeMenu()
+            dialog.current?.showModal()
+          }}>End Session</button>}
+        </nav>
+      </details>
     </header>
+    <dialog ref={dialog} aria-labelledby="end-heading">
+      <h2 id="end-heading">End session?</h2>
+      <p>Your progress will be saved, and tracking will stop.</p>
+      <form method="dialog" className="dialog-actions">
+        <button className="quiet" autoFocus>Cancel</button>
+        <button className="primary" onClick={() => dispatch('end_session')}>End Session</button>
+      </form>
+    </dialog>
     <main className={page === 'focus' ? 'focus-page' : 'content-page'}>
       {error ? <div className="report"><p role="alert">{error}</p><button className="quiet" onClick={retry}>Retry</button></div> : !view || !state ? <p role="status">Loading…</p> : <>
         {page === 'focus' && <Focus state={state} at={view.at} dispatch={dispatch} />}
         {page === 'metrics' && <Metrics state={state} at={view.at} />}
-        {page === 'settings' && <Profile state={state} user={user} image={image} setImage={url => { setUploaded(true); setImage(url) }} save={settings => dispatch('settings_changed', settings)}
+        {page === 'settings' && <Profile state={state} user={user} image={image} setImage={url => { setUploaded(true); setImage(url) }} save={settings => dispatch('settings_changed', { ...view.store.journal.state.settings, ...settings })}
           signOut={async () => {
             dispatch('page_closed')
             await view.store.flush()
@@ -164,7 +207,7 @@ function App() {
   }, [])
   if (demo || user) return <Workspace key={user?.id ?? 'demo'} user={user} />
   return <main className="focus-page auth-page"><section className="timer-panel auth">
-    <h1>Focus Tracker</h1>
+    <h1>Sign in</h1>
     {loading ? <p role="status">Loading…</p> : cloud ? <button className="primary" onClick={async () => {
       const { error } = await cloud!.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } })
       if (error) setError(error.message)

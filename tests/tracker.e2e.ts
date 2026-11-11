@@ -16,14 +16,15 @@ test('counts focus, preserves remaining time on reload, and saves an early sessi
   await expect(page.getByRole('heading', { name: 'Paused while away' })).toBeVisible()
   await page.clock.fastForward(3600_000)
   await expect(page.getByRole('timer')).toHaveText('55:00')
-  await page.getByLabel('Session options').click()
+  await page.getByLabel('Menu').click()
   await page.getByRole('button', { name: 'End Session', exact: true }).click()
   await page.getByRole('button', { name: 'Cancel' }).click()
   await expect(page.getByRole('button', { name: 'Resume' })).toBeVisible()
-  await page.getByLabel('Session options').click()
+  await page.getByLabel('Menu').click()
   await page.getByRole('button', { name: 'End Session', exact: true }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'End Session' }).click()
   await expect(page.getByRole('button', { name: 'Start', exact: true })).toBeVisible()
+  await page.getByLabel('Menu').click()
   await page.getByRole('button', { name: 'Metrics' }).click()
   await expect(page.getByRole('heading', { name: 'Your Week' })).toBeVisible()
   await expect(page.locator('.chart button')).toHaveCount(7)
@@ -59,13 +60,18 @@ test('locks at local cutoff and unlocks the next morning', async ({ page }) => {
 })
 
 test('applies settings and exports stored activity as JSON', async ({ page }) => {
+  await page.getByLabel('Menu').click()
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
   await page.getByLabel('Focus target (minutes)').fill('25')
   await page.getByLabel('Included break (minutes)').fill('5')
+  await page.getByLabel('Focus completion sound').selectOption('bell')
+  await page.getByRole('button', { name: 'Preview sound' }).click()
   await page.getByRole('button', { name: 'Save settings' }).click()
-  await page.getByRole('button', { name: 'Focus Tracker' }).click()
+  await page.getByLabel('Menu').click()
+  await page.getByRole('button', { name: 'Focus', exact: true }).click()
   await expect(page.getByRole('timer')).toHaveText('25:00')
   await page.getByRole('button', { name: 'Start', exact: true }).click()
+  await page.getByLabel('Menu').click()
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Export activity as JSON' }).click()
@@ -75,7 +81,35 @@ test('applies settings and exports stored activity as JSON', async ({ page }) =>
   const chunks: Buffer[] = []
   for await (const chunk of stream) chunks.push(chunk)
   const backup = JSON.parse(Buffer.concat(chunks).toString('utf8'))
-  expect(backup.settings).toMatchObject({ target: 25 * 60_000, allowance: 5 * 60_000 })
+  expect(backup.settings).toMatchObject({ target: 25 * 60_000, allowance: 5 * 60_000, sound: 'bell' })
   expect(backup.blocks).toHaveLength(1)
   expect(backup.events.map((event: { type: string }) => event.type)).toEqual(['settings_changed', 'start'])
+})
+
+test('sends one notification when enabled focus completes', async ({ page }) => {
+  await page.addInitScript(() => {
+    const alerts: string[] = []
+    Object.assign(window, { focusAlerts: alerts })
+    class TestNotification {
+      static permission = 'default'
+      static async requestPermission() {
+        TestNotification.permission = 'granted'
+        return 'granted'
+      }
+      constructor(title: string) { alerts.push(title) }
+    }
+    Object.defineProperty(window, 'Notification', { value: TestNotification })
+  })
+  await page.reload()
+  await page.getByLabel('Menu').click()
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await page.getByRole('button', { name: 'Enable browser notifications' }).click()
+  await expect(page.getByRole('checkbox', { name: 'Notify me when focus time is up' })).toBeChecked()
+  await page.getByLabel('Menu').click()
+  await page.getByRole('button', { name: 'Focus', exact: true }).click()
+  await page.getByRole('button', { name: 'Start', exact: true }).click()
+  await page.clock.fastForward(3600_000)
+  await expect(page.getByRole('heading', { name: 'Break', exact: true })).toBeVisible()
+  await page.clock.fastForward(60_000)
+  expect(await page.evaluate(() => Reflect.get(window, 'focusAlerts'))).toEqual(['Focus time is up'])
 })
