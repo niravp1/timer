@@ -27,7 +27,14 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
   const formatter = new Intl.DateTimeFormat(undefined, {
     timeZone: state.settings.zone, hour: 'numeric', minute: '2-digit', second: '2-digit',
   })
+  const shortClock = new Intl.DateTimeFormat(undefined, { timeZone: state.settings.zone, hour: 'numeric', minute: '2-digit' })
   const clock = (ms: number) => formatter.format(ms)
+  const activityTime = (start: number, end?: number) => {
+    const label = shortClock.format(start)
+    if (end === undefined) return `${label} · In progress`
+    const endLabel = shortClock.format(end)
+    return label === endLabel ? label : `${label} – ${endLabel}`
+  }
   const range = (start: number, end?: number) => `${clock(start)} – ${end === undefined ? 'In progress' : clock(end)}`
   const names = { focus: 'Focus', manual_pause: 'Manual pause', system_interruption: 'System interruption' }
 
@@ -62,19 +69,39 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
 
   function entry(cycle: Cycle) {
     const paused = total(cycle, 'manual_pause', at)
-    return <button className="entry" key={cycle.id} onClick={() => setSelected(cycle.id)}>
-      <span><strong>{range(cycle.start, cycle.end)}</strong><small>{duration(total(cycle, 'focus', at))} focused · {duration(paused)} paused</small></span>
-      {cycle.rest && <span><small>{range(cycle.rest.start, cycle.rest.end)}</small><small>{duration(span(cycle.rest, at))} break · {duration(Math.max(0, span(cycle.rest, at) - cycle.rest.allowance))} extra</small></span>}
-    </button>
+    const rest = cycle.rest
+    const breakTime = rest ? span(rest, at) : 0
+    const overage = rest ? Math.max(0, breakTime - rest.allowance) : 0
+    return <li key={cycle.id}>
+      <button className="entry" onClick={() => setSelected(cycle.id)}>
+        <span className="entry-content">
+          <span className="entry-line">
+            <span><strong>Focus session</strong><small>{activityTime(cycle.start, cycle.end)}</small></span>
+            <span><strong>{duration(total(cycle, 'focus', at))} focused</strong>{paused > 0 && <small>{duration(paused)} paused</small>}</span>
+          </span>
+          {rest && <span className="entry-line">
+            <span>Break<small>{activityTime(rest.start, rest.end)}</small></span>
+            <span>{duration(breakTime)}{overage > 0 && <small>{duration(overage)} over allowance</small>}</span>
+          </span>}
+        </span>
+        <span className="entry-arrow" aria-hidden="true">›</span>
+      </button>
+    </li>
   }
 
   if (day && daily) return <section className="report">
     <button className="quiet" onClick={() => setDay(undefined)}>← Week</button>
     <h1>{day.toLocaleString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h1>
     <Totals {...daily} />
-    <p className="split">{duration(daily.pauses)} in manual pauses · {duration(daily.overage)} in extended breaks</p>
+    <h2>What counted as extra time</h2>
+    <dl className="extra-breakdown">
+      <div><dt>Focus paused by you<small>Time the timer stayed paused after you pressed Pause.</small></dt>
+        <dd>{daily.pauses > 0 ? duration(daily.pauses) : 'No manual pauses'}</dd></div>
+      <div><dt>Breaks past their allowance<small>Only the time after the included break ends.</small></dt>
+        <dd>{daily.overage > 0 ? duration(daily.overage) : daily.rest > 0 ? 'Within allowance' : 'No breaks recorded'}</dd></div>
+    </dl>
     <h2>Activity</h2>
-    {daily.entries.length ? daily.entries.map(entry) : <p>No activity for this day.</p>}
+    {daily.entries.length ? <ul className="activity-list">{daily.entries.map(entry)}</ul> : <p>No activity for this day.</p>}
   </section>
 
   return <section className="report">
@@ -89,6 +116,7 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
       rest={reports.reduce((sum, item) => sum + item.rest, 0)}
       extra={reports.reduce((sum, item) => sum + item.extra, 0)} />
     <h2>Extra time by day</h2>
+    <p className="split">Focus time you paused, plus break time past the included allowance.</p>
     <div className="chart">{reports.map((item, index) => <button
       key={weekdays[index]} aria-label={`${weekdays[index]}, ${dayLabel(days[index])}, ${duration(item.extra)} extra`}
       onClick={() => setDay(days[index])}>

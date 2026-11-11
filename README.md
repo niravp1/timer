@@ -43,6 +43,10 @@ Under **Menu → Settings**, choose Soft chime, Double bell, or Silent. Use **Pr
 
 Use **Menu → End Session** while focus or a break is active, then confirm.
 
+## Profile and recovery
+
+The signed-in user can open **Menu → Profile** to change their picture and set a private username. The username is stored in the user's Supabase Auth metadata and has no role in sign-in or authorization. Profile pictures use the private avatar bucket. The app uses Google sign-in and has no app password. The sign-in screen and Profile both link to [Google Account recovery](https://support.google.com/accounts/answer/7682439).
+
 ## How tracking and sync work
 
 - Start during a break closes that break and starts the next focus cycle at the same timestamp. Each cycle snapshots its focus target and break allowance. Each work block snapshots the time zone and cutoff at its start. Metrics use the current reporting time zone.

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { User } from '@supabase/supabase-js'
-import { avatarUrl, cloud, demo, uploadAvatar } from './cloud'
+import { avatarUrl, cloud, demo } from './cloud'
 import { current, span, startLocked, total, type Settings, type Tracker } from './engine'
 import { clockText, minute } from './time'
 import { Metrics } from './Metrics'
+import { Profile, RecoveryLink } from './Profile'
 import { useTracker } from './useTracker'
 import { playSound, sounds, type AlertSound } from './alerts'
 import './style.css'
@@ -44,12 +45,8 @@ function Focus({ state, at, dispatch }: {
   </section>
 }
 
-function Profile({ state, user, image, setImage, save, signOut }: {
-  state: Tracker; user: User | null; image?: string; setImage: (image?: string) => void
-  save: (settings: Partial<Settings>) => void; signOut: () => void
-}) {
+function SettingsPage({ state, save }: { state: Tracker; save: (settings: Partial<Settings>) => void }) {
   const [message, setMessage] = useState('')
-  const [uploading, setUploading] = useState(false)
   const [sound, setSound] = useState<AlertSound>(state.settings.sound ?? 'chime')
   const [permission, setPermission] = useState(() =>
     typeof Notification === 'undefined' ? 'unsupported' : Notification.permission)
@@ -113,23 +110,9 @@ function Profile({ state, user, image, setImage, save, signOut }: {
             <button className="quiet" onClick={enableNotifications}>Allow browser notifications</button>}
         </>}
     </div>
-    {user && <div className="profile">
-      <h2>Profile</h2>
-      <p>{user.email}</p>
-      {image && <img className="avatar" src={image} alt="Your profile photo" />}
-      <label>Upload avatar<input type="file" disabled={uploading} accept="image/jpeg,image/png,image/webp" onChange={async event => {
-        const file = event.currentTarget.files?.[0]
-        if (!file) return
-        setUploading(true)
-        try { setImage(await uploadAvatar(file, user)); setMessage('Avatar updated.') }
-        catch (error) { setMessage((error as Error).message) }
-        finally { setUploading(false) }
-      }} /></label>
-    </div>}
     <p role="status">{message}</p>
     <div className="profile-actions">
       <button className="quiet" onClick={exportData}>Export activity as JSON</button>
-      {user && <button className="quiet" onClick={signOut}>Sign out</button>}
     </div>
   </section>
 }
@@ -171,7 +154,7 @@ function Workspace({ user }: { user: User | null }) {
       }}>
         <summary aria-label="Menu"><span aria-hidden="true" className="hamburger" /></summary>
         <nav aria-label="Main navigation">
-          {['Focus', 'Metrics', 'Settings'].map(label => <button className="quiet" key={label}
+          {['Focus', 'Metrics', 'Settings', ...(user ? ['Profile'] : [])].map(label => <button className="quiet" key={label}
             aria-current={page === label.toLowerCase() ? 'page' : undefined}
             onClick={() => { setPage(label.toLowerCase()); closeMenu() }}>{label}</button>)}
           {state && current(state).mode !== 'idle' && <button className="quiet" onClick={() => {
@@ -193,7 +176,10 @@ function Workspace({ user }: { user: User | null }) {
       {error ? <div className="report"><p role="alert">{error}</p><button className="quiet" onClick={retry}>Retry</button></div> : !view || !state ? <p role="status">Loading…</p> : <>
         {page === 'focus' && <Focus state={state} at={view.at} dispatch={dispatch} />}
         {page === 'metrics' && <Metrics state={state} at={view.at} />}
-        {page === 'settings' && <Profile state={state} user={user} image={image} setImage={url => { setUploaded(true); setImage(url) }} save={settings => dispatch('settings_changed', { ...view.store.journal.state.settings, ...settings })}
+        {page === 'settings' && <SettingsPage state={state}
+          save={settings => dispatch('settings_changed', { ...view.store.journal.state.settings, ...settings })} />}
+        {page === 'profile' && user && <Profile user={user} image={image}
+          setImage={url => { setUploaded(true); setImage(url) }}
           signOut={async () => {
             dispatch('page_closed')
             await view.store.flush()
@@ -230,6 +216,7 @@ function App() {
       const { error } = await cloud!.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } })
       if (error) setError(error.message)
     }}>Sign in with Google</button> : <p>Supabase configuration is required.</p>}
+    {cloud && !loading && <p className="recovery-link"><RecoveryLink /></p>}
     {error && <p role="alert">{error}</p>}
   </section></main>
 }

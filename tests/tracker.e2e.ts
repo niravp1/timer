@@ -34,6 +34,9 @@ test('counts focus, preserves remaining time on reload, and saves an early sessi
   await expect(page.getByRole('heading', { name: 'Your Week' })).toBeVisible()
   await expect(page.locator('.chart button')).toHaveCount(7)
   await page.getByRole('button', { name: /^Mon,/ }).click()
+  await expect(page.getByText('No breaks recorded', { exact: true })).toBeVisible()
+  await expect(page.getByText('Focus paused by you', { exact: false })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Focus session.*focused/ })).toBeVisible()
   await page.locator('.entry').click()
   await expect(page.getByText('System interruption', { exact: true }).first()).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(

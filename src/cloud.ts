@@ -46,3 +46,9 @@ export async function uploadAvatar(file: File, user: User) {
   if (profileError) throw profileError
   return avatarUrl(path, user)
 }
+
+export async function saveUsername(username: string) {
+  if (username.length > 30) throw new Error('Use 30 characters or fewer.')
+  const { error } = await cloud!.auth.updateUser({ data: { tracker_username: username || null } })
+  if (error) throw error
+}

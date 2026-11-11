@@ -109,3 +109,29 @@ dialog::backdrop { background: #090909a0; }
 .sound-setting { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; width: 100%; }
 .settings .checkbox { display: flex; gap: 8px; align-items: center; }
 .settings .checkbox input { min-height: 0; }
+
+.extra-breakdown { margin: 0 0 28px; }
+.extra-breakdown > div {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.extra-breakdown dt { font-weight: 650; }
+.extra-breakdown small { display: block; font-weight: 400; margin-top: 4px; color: var(--muted); }
+.extra-breakdown dd { margin: 0; text-align: right; font-size: .875rem; flex: 0 0 auto; }
+.activity-list { list-style: none; margin: 0; padding: 0; }
+.activity-list li + li { margin-top: 8px; }
+.activity-list .entry {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px;
+  border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px;
+}
+.activity-list .entry:hover { background: #292929; }
+.entry-line { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.entry-line > span:last-child { text-align: right; }
+.entry-line + .entry-line { border-top: 1px solid var(--border); padding-top: 8px; margin-top: 8px; }
+.entry-arrow { color: var(--muted); font-size: 1.4rem; }
+.profile-photo { width: 72px; height: 72px; object-fit: cover; font-size: 1.4rem; }
+.profile a, .recovery-link a { color: var(--primary); text-underline-offset: 3px; }
+.recovery-link { margin: 18px 0 0; font-size: .9rem; }
+@media (max-width: 420px) {
+  .extra-breakdown > div { flex-direction: column; gap: 4px; }
+}
