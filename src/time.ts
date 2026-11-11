@@ -14,9 +14,16 @@ export function cutoff(at: number, zone: string, time: string) {
   return localInstant(localDay(at, zone), zone, time)
 }
 
-export function clockText(ms: number, up = false) {
-  const seconds = Math.max(0, up ? Math.floor(ms / 1000) : Math.ceil(ms / 1000))
-  return [Math.floor(seconds / 60), seconds % 60].map(n => String(n).padStart(2, '0')).join(':')
+const padTime = (value: number) => String(value).padStart(2, '0')
+
+export function clockText(ms: number) {
+  const seconds = Math.max(0, Math.ceil(ms / 1000))
+  return [Math.floor(seconds / 60), seconds % 60].map(padTime).join(':')
+}
+
+export function breakClockText(ms: number) {
+  const seconds = Math.max(0, Math.floor(ms / 1000))
+  return [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map(padTime).join(':')
 }
 
 export function duration(ms: number) {

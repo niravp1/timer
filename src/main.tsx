@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import type { User } from '@supabase/supabase-js'
 import { avatarUrl, cloud, demo } from './cloud'
 import { current, span, startLocked, total, type Settings, type Tracker } from './engine'
-import { clockText, minute } from './time'
+import { breakClockText, clockText, minute } from './time'
 import { Metrics } from './Metrics'
 import { Profile, RecoveryLink } from './Profile'
 import { useTracker } from './useTracker'
@@ -15,7 +15,7 @@ function timerDisplay(state: Tracker, at: number) {
   const rest = cycle?.rest
   const elapsed = rest ? span(rest, at) : 0
   const remaining = cycle ? cycle.target - total(cycle, 'focus', at) : state.settings.target
-  const digits = clockText(rest ? elapsed : remaining, !!rest)
+  const digits = rest ? breakClockText(elapsed) : clockText(remaining)
   return { mode, interval, rest, elapsed, digits }
 }
 
@@ -38,8 +38,8 @@ function Focus({ state, at, dispatch }: {
     : locked ? 'Finished for today' : 'Focus'
   return <section className="timer-panel" aria-label="Focus timer">
     <h1 aria-live="polite">{status}</h1>
-    <div className="digits" role="timer">{digits}</div>
-    <div className="timer-note">{rest && elapsed > rest.allowance ? `+${clockText(elapsed - rest.allowance, true)} extra` : ''}</div>
+    <div className={rest ? 'digits break-digits' : 'digits'} role="timer">{digits}</div>
+    <div className="timer-note">{rest && elapsed > rest.allowance ? `+${breakClockText(elapsed - rest.allowance)} extra` : ''}</div>
     <button className="primary timer-action" disabled={locked} onClick={() => {
       dispatch(label === 'Start' ? 'start' : label === 'Pause' ? 'pause' : 'resume')
     }}>{label}</button>
