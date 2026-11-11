@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { current, recover, transition, type Action, type Settings } from './engine'
 import { cloud, demo, readRemote, zone } from './cloud'
-import { notifyFocusComplete, playSound, prepareSound } from './alerts'
+import { notifyFocusComplete, playSound, prepareSound, requestNotificationsOnStart } from './alerts'
 import { hydrate, Persistence, type Journal } from './persistence'
 
 function announceCompletion(previous: Journal['state'], next: Journal['state']) {
   if (current(next).mode !== 'break_running' ||
       !next.events.slice(previous.events.length).some(event => event.type === 'focus_completed')) return
   void playSound(next.settings.sound ?? 'chime').catch(() => {})
-  if (next.settings.notifications) notifyFocusComplete()
+  if (next.settings.notifications !== false) notifyFocusComplete()
 }
 
 export function useTracker(account: string) {
@@ -115,6 +115,9 @@ export function useTracker(account: string) {
     const previous = view.store.journal.state
     const next = transition(previous, action)
     if (next !== previous) {
+      if (type === 'start' && current(next).mode === 'focus_running' && next.settings.notifications !== false) {
+        requestNotificationsOnStart()
+      }
       view.store.save(next)
       announceCompletion(previous, next)
       setView({ ...view })

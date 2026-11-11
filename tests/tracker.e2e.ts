@@ -86,7 +86,7 @@ test('applies settings and exports stored activity as JSON', async ({ page }) =>
   expect(backup.events.map((event: { type: string }) => event.type)).toEqual(['settings_changed', 'start'])
 })
 
-test('sends one notification when enabled focus completes', async ({ page }) => {
+test('requests permission on Start and sends one notification by default', async ({ page }) => {
   await page.addInitScript(() => {
     const alerts: string[] = []
     Object.assign(window, { focusAlerts: alerts })
@@ -103,11 +103,11 @@ test('sends one notification when enabled focus completes', async ({ page }) => 
   await page.reload()
   await page.getByLabel('Menu').click()
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
-  await page.getByRole('button', { name: 'Enable browser notifications' }).click()
   await expect(page.getByRole('checkbox', { name: 'Notify me when focus time is up' })).toBeChecked()
   await page.getByLabel('Menu').click()
   await page.getByRole('button', { name: 'Focus', exact: true }).click()
   await page.getByRole('button', { name: 'Start', exact: true }).click()
+  expect(await page.evaluate(() => Notification.permission)).toBe('granted')
   await page.clock.fastForward(3600_000)
   await expect(page.getByRole('heading', { name: 'Break', exact: true })).toBeVisible()
   await page.clock.fastForward(60_000)

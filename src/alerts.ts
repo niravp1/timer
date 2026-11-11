@@ -35,6 +35,15 @@ export async function playSound(sound: AlertSound) {
   })
 }
 
+let promptedOnStart = false
+
+export function requestNotificationsOnStart() {
+  if (promptedOnStart || typeof Notification === 'undefined' ||
+      Notification.permission !== 'default' || typeof Notification.requestPermission !== 'function') return
+  promptedOnStart = true
+  void Notification.requestPermission().catch(() => {})
+}
+
 export function notifyFocusComplete() {
   if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
     try { new Notification('Focus time is up', { body: 'Your break has started.', tag: 'focus-complete' }) }

@@ -92,11 +92,13 @@ function Profile({ state, user, image, setImage, save, signOut }: {
         ? <p>This browser does not support desktop notifications.</p>
         : permission === 'denied'
         ? <p>Allow notifications for this site in your browser settings, then reload.</p>
-        : permission === 'granted'
-        ? <label className="checkbox"><input type="checkbox" checked={!!state.settings.notifications}
-            onChange={event => save({ notifications: event.target.checked })} />
-            Notify me when focus time is up</label>
-        : <button className="quiet" onClick={enableNotifications}>Enable browser notifications</button>}
+        : <>
+          <label className="checkbox"><input type="checkbox" checked={state.settings.notifications !== false}
+              onChange={event => save({ notifications: event.target.checked })} />
+              Notify me when focus time is up</label>
+          {permission === 'default' && state.settings.notifications !== false &&
+            <button className="quiet" onClick={enableNotifications}>Allow browser notifications</button>}
+        </>}
     </div>
     {user && <div className="profile">
       <h2>Profile</h2>
