@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <meta name="apple-mobile-web-app-title" content="Stopwatch" />
+  <meta name="description" content="A distraction-free iPhone-style stopwatch with precise lap timing." />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <title>Stopwatch</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #000;
+      --separator: rgba(255, 255, 255, .20);
+      --text: #f5f5f7;
+      --muted: #858589;
+      --green: #30d158;
+      --green-bg: #092e14;
+      --red: #ff453a;
+      --red-bg: #330a07;
+      --gray-bg: #303034;
+      --accent: #ff9f0a;
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Inter", "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: #111113; }
+    body { display: grid; place-items: center; min-height: 100dvh; overflow: hidden; }
+    button { font: inherit; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+    button:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
+    .app {
+      display: flex; flex-direction: column; overflow: hidden;
+      width: min(100%, 430px); height: min(94dvh, 880px);
+      background: var(--bg); color: var(--text);
+      box-shadow: 0 22px 100px rgba(0,0,0,.45);
+      border: 1px solid #29292b; border-radius: 34px;
+      user-select: none; -webkit-user-select: none;
+      position: relative;
+    }
+    .face {
+      flex: 0 0 31.8%; min-height: 184px;
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px 8px 0;
+    }
+    .time {
+      text-align: center; white-space: nowrap;
+      font-weight: 200; font-size: clamp(54px, 15.8vw, 73px);
+      letter-spacing: -.057em; line-height: 1;
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: 'tnum';
+      color: #fafafa;
+    }
+    .time.long { font-size: clamp(39px, 11.7vw, 56px); }
+    .buttons {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 19px 19px;
+      position: relative; flex: 0 0 106px;
+    }
+    .round {
+      position: relative; height: 77px; width: 77px;
+      border-radius: 50%; border: 0; flex: 0 0 auto;
+      display: grid; place-items: center; cursor: pointer;
+      font-size: 16px; font-weight: 400;
+      transition: filter .13s ease, transform .13s ease;
+    }
+    .round::before {
+      content: ''; position: absolute; inset: 3px;
+      border: 2px solid var(--bg); border-radius: 50%;
+      pointer-events: none;
+    }
+    .round:active:not(:disabled) { transform: scale(.965); filter: brightness(1.18); }
+    .round:disabled { opacity: .46; cursor: default; }
+    .round.secondary { background: var(--gray-bg); color: #f4f4f6; }
+    .round.start { background: var(--green-bg); color: var(--green); }
+    .round.stop { background: var(--red-bg); color: var(--red); }
+    .dots {
+      display: flex; align-items: center; gap: 6px;
+      position: absolute; left: 50%; top: 38px; transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+    .dot { height: 6px; width: 6px; border-radius: 50%; background: #48484a; }
+    .dot:first-child { background: #f5f5f7; }
+    .lap-section {
+      flex: 1 1 0; min-height: 0; overflow-y: auto;
+      border-top: 1px solid var(--separator);
+      margin: 0 18px; overscroll-behavior: contain;
+      scrollbar-width: none;
+    }
+    .lap-section::-webkit-scrollbar { display: none; }
+    .lap-row {
+      display: flex; justify-content: space-between; align-items: center;
+      height: 41px; border-bottom: 1px solid var(--separator);
+      font-size: 15px; letter-spacing: -.018em; font-weight: 400;
+      font-variant-numeric: tabular-nums;
+    }
+    .lap-row.fastest { color: var(--green); }
+    .lap-row.slowest { color: var(--red); }
+    .lap-duration { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .tab-bar {
+      flex: 0 0 71px; display: flex; align-items: flex-start;
+      justify-content: space-around; border-top: 1px solid #222224;
+      background: #09090a; padding: 8px 10px 3px;
+    }
+    .tab {
+      flex: 1; display: flex; align-items: center; flex-direction: column;
+      gap: 5px; color: #858589;
+      font-size: 10px; line-height: 1.05; white-space: nowrap;
+    }
+    .tab svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .tab.active { color: var(--accent); }
+    .tab.active svg { fill: currentColor; stroke: currentColor; }
+    .tab .watch-hand { stroke: #09090a; stroke-width: 1.75; fill: none; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    @media (max-width: 520px) {
+      html, body { background: #000; }
+      .app { width: 100%; height: 100dvh; border: 0; border-radius: 0; box-shadow: none; }
+      .time { font-size: clamp(52px, 16.2vw, 72px); }
+      .time.long { font-size: clamp(37px, 12vw, 54px); }
+      .tab-bar { padding-bottom: max(4px, env(safe-area-inset-bottom)); flex-basis: calc(68px + env(safe-area-inset-bottom)); }
+    }
+    @media (max-height: 620px) {
+      .face { min-height: 120px; flex-basis: 30%; }
+      .buttons { flex-basis: 92px; padding-bottom: 9px; }
+      .round { height: 66px; width: 66px; font-size: 15px; }
+      .dots { top: 33px; }
+      .tab-bar { flex-basis: 62px; }
+    }
+    @media (prefers-reduced-motion: reduce) { .round { transition: none; } }
+  </style>
+</head>
+<body>
+  <main class="app" aria-label="Stopwatch app">
+    <section class="face" aria-label="Elapsed time">
+      <div id="time" class="time" role="timer" aria-label="Elapsed time">00:00.00</div>
+    </section>
+
+    <section class="buttons" aria-label="Stopwatch controls">
+      <button id="lapButton" class="round secondary" type="button" disabled aria-label="Lap">Lap</button>
+      <div class="dots" aria-hidden="true"><span class="dot"></span><span class="dot"></span></div>
+      <button id="startButton" class="round start" type="button" aria-label="Start">Start</button>
+    </section>
+
+    <section id="laps" class="lap-section" aria-label="Lap times" aria-live="off"></section>
+
+    <!-- Clock tabs below are visual-only: this standalone website implements Stopwatch. -->
+    <footer class="tab-bar" aria-label="Stopwatch tab">
+      <div class="tab" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c-5 5-5 13 0 18M12 3c5 5 5 13 0 18M4.5 7.5h15M4.5 16.5h15"/></svg>
+        <span>World Clock</span>
+      </div>
+      <div class="tab" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="7"/><path d="M12 9v4l2.5 1.5M5 4 2.5 7M19 4l2.5 3M7 20l-1.5 2M17 20l1.5 2M10 3h4"/></svg>
+        <span>Alarms</span>
+      </div>
+      <div class="tab active" aria-current="page">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="13.5" r="8.4"/><path d="M9 2h6M12 5v3" stroke-width="2.4"/><path class="watch-hand" d="M12 9v4.5l-2 2"/></svg>
+        <span>Stopwatch</span>
+      </div>
+      <div class="tab" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M12 4a9 9 0 1 1-7.5 4"/><path d="M4 3v5h5M12 8v5l3 2"/></svg>
+        <span>Timers</span>
+      </div>
+    </footer>
+    <span id="announcer" class="sr-only" aria-live="polite"></span>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+      const KEY = 'iphone-style-stopwatch-v1';
+      const $ = id => document.getElementById(id);
+      const timeEl = $('time');
+      const lapButton = $('lapButton');
+      const startButton = $('startButton');
+      const lapList = $('laps');
+      const announcer = $('announcer');
+
+      // A timestamp is saved, not a counter of timer callbacks; it continues
+      // to measure elapsed time while the tab is backgrounded or reloaded.
+      const fresh = () => ({ running: false, elapsedMs: 0, startedAt: null, lapStartMs: 0, laps: [] });
+      let state = fresh();
+      try {
+        const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
+        if (saved && typeof saved.elapsedMs === 'number' && Array.isArray(saved.laps) &&
+            (saved.startedAt === null || typeof saved.startedAt === 'number')) {
+          state = {
+            running: !!saved.running && saved.startedAt !== null,
+            elapsedMs: Math.max(0, saved.elapsedMs),
+            startedAt: saved.startedAt,
+            lapStartMs: Math.max(0, Number(saved.lapStartMs) || 0),
+            laps: saved.laps.filter(n => Number.isFinite(n) && n >= 0).slice(0, 10000)
+          };
+        }
+      } catch (_) { /* Private browsing can disable storage. */ }
+
+      const save = () => {
+        try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (_) {}
+      };
+      const elapsed = () => Math.max(0, state.elapsedMs + (state.running ? Math.max(0, Date.now() - state.startedAt) : 0));
+      const two = n => String(n).padStart(2, '0');
+      const format = milliseconds => {
+        const cs = Math.floor(Math.max(0, milliseconds) / 10);
+        const hundredths = cs % 100;
+        const seconds = Math.floor(cs / 100) % 60;
+        const minutes = Math.floor(cs / 6000) % 60;
+        const hours = Math.floor(cs / 360000);
+        return (hours ? hours + ':' + two(minutes) : two(Math.floor(cs / 6000))) + ':' + two(seconds) + '.' + two(hundredths);
+      };
+
+      let currentLapTime = null;
+      function renderTime() {
+        const total = elapsed();
+        const value = format(total);
+        if (timeEl.textContent !== value) {
+          timeEl.textContent = value;
+          timeEl.classList.toggle('long', Math.floor(total / 3600000) > 0);
+        }
+        if (currentLapTime) {
+          const lapValue = format(Math.max(0, total - state.lapStartMs));
+          if (currentLapTime.textContent !== lapValue) currentLapTime.textContent = lapValue;
+        }
+      }
+
+      function renderControls() {
+        startButton.textContent = state.running ? 'Stop' : 'Start';
+        startButton.setAttribute('aria-label', state.running ? 'Stop' : 'Start');
+        startButton.classList.toggle('start', !state.running);
+        startButton.classList.toggle('stop', state.running);
+        lapButton.textContent = state.running ? 'Lap' : 'Reset';
+        lapButton.setAttribute('aria-label', state.running ? 'Lap' : 'Reset');
+        lapButton.disabled = !state.running && elapsed() === 0 && state.laps.length === 0;
+      }
+
+      function renderLaps() {
+        const total = elapsed();
+        lapList.replaceChildren();
+        currentLapTime = null;
+        if (!state.running && !total && state.laps.length === 0) return;
+
+        // Apple's list displays the current unfinished lap above recorded laps.
+        const live = document.createElement('div');
+        live.className = 'lap-row';
+        const liveLabel = document.createElement('span');
+        liveLabel.textContent = `Lap ${state.laps.length + 1}`;
+        currentLapTime = document.createElement('span');
+        currentLapTime.className = 'lap-duration';
+        live.append(liveLabel, currentLapTime);
+        lapList.appendChild(live);
+
+        const n = state.laps.length;
+        const fastest = n >= 2 ? Math.min(...state.laps) : null;
+        const slowest = n >= 2 ? Math.max(...state.laps) : null;
+        for (let i = n - 1; i >= 0; --i) {
+          const row = document.createElement('div');
+          row.className = 'lap-row';
+          if (fastest !== slowest && state.laps[i] === fastest) row.classList.add('fastest');
+          if (fastest !== slowest && state.laps[i] === slowest) row.classList.add('slowest');
+          const label = document.createElement('span');
+          label.textContent = `Lap ${i + 1}`;
+          const duration = document.createElement('span');
+          duration.className = 'lap-duration';
+          duration.textContent = format(state.laps[i]);
+          row.append(label, duration);
+          lapList.appendChild(row);
+        }
+        renderTime();
+      }
+
+      function startStop() {
+        if (state.running) {
+          state.elapsedMs = elapsed();
+          state.startedAt = null;
+          state.running = false;
+          announcer.textContent = 'Stopwatch stopped';
+        } else {
+          state.startedAt = Date.now();
+          state.running = true;
+          announcer.textContent = 'Stopwatch started';
+        }
+        save();
+        renderControls();
+        renderLaps();
+        renderTime();
+      }
+
+      function lapReset() {
+        if (state.running) {
+          const now = elapsed();
+          const duration = Math.max(0, now - state.lapStartMs);
+          state.laps.push(duration);
+          state.lapStartMs = now;
+          announcer.textContent = `Lap ${state.laps.length}, ${format(duration)}`;
+        } else {
+          state = fresh();
+          announcer.textContent = 'Stopwatch reset';
+        }
+        save();
+        renderControls();
+        renderLaps();
+        renderTime();
+        lapList.scrollTop = 0;
+      }
+
+      startButton.addEventListener('click', startStop);
+      lapButton.addEventListener('click', () => { if (!lapButton.disabled) lapReset(); });
+      document.addEventListener('keydown', ev => {
+        if (ev.altKey || ev.metaKey || ev.ctrlKey || ev.repeat ||
+            ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+        if (ev.code === 'Space') { ev.preventDefault(); startStop(); }
+        else if (ev.key.toLowerCase() === 'l' && state.running) lapReset();
+        else if (ev.key.toLowerCase() === 'r' && !state.running && !lapButton.disabled) lapReset();
+      });
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) renderTime(); });
+      // Centisecond display without relying on callback counts for correctness.
+      setInterval(renderTime, 16);
+      renderControls();
+      renderLaps();
+      renderTime();
+
+      if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').catch(() => {});
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
