@@ -34,9 +34,11 @@ test('counts focus, preserves remaining time on reload, and saves an early sessi
   await expect(page.getByRole('heading', { name: 'Your Week' })).toBeVisible()
   await expect(page.locator('.chart button')).toHaveCount(7)
   await page.getByRole('button', { name: /^Mon,/ }).click()
-  await expect(page.getByText(/Extra time is the portion after it/)).toBeVisible()
+  await expect(page.getByText(/Extra time includes manual pauses/)).toBeVisible()
   await expect(page.getByRole('button', { name: /Focus session.*focused/ })).toBeVisible()
+  await expect(page.locator('.totals')).toContainText('Extra time2m')
   await page.locator('.entry').click()
+  await expect(page.getByRole('heading', { name: 'Session timeline' })).toBeVisible()
   await expect(page.getByText('System interruption', { exact: true }).first()).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
     await page.evaluate(() => window.innerWidth),
@@ -59,7 +61,7 @@ test('counts break up across reload and switches to the next focus with Start', 
   await page.getByLabel('Menu').click()
   await page.getByRole('button', { name: 'Metrics', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Time breakdown by day' })).toBeVisible()
-  const monday = page.getByRole('button', { name: /^Mon,.*1h 15m focus and included breaks, 1h 15m extra break time$/ })
+  const monday = page.getByRole('button', { name: /^Mon,.*1h 15m focus and included breaks, 1h 15m extra time$/ })
   await expect(monday).toBeVisible()
   await expect(monday.locator('.bar > span')).toHaveCount(2)
   await monday.focus()

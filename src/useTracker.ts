@@ -30,15 +30,14 @@ export function useTracker(account: string) {
         const raw = localStorage.getItem(key)
         cached = raw ? JSON.parse(raw) : undefined
       } catch { /* An unavailable cache is reported when saving. */ }
-      const remote = cloud ? await readRemote().catch(error => {
-        if (!cached) throw error
-        return { revision: cached.revision, state: null, avatar: null }
-      }) : { revision: 0, state: null, avatar: null }
+      const remote = cloud ? readRemote() : undefined
+      const initialRemote = !cached && remote ? await remote : { revision: 0, state: null, avatar: null }
       if (disposed) return
+      let avatar = initialRemote.avatar
       const refresh = () => {
-        if (!disposed) setView({ store, at: now(), now, avatar: remote.avatar })
+        if (!disposed) setView({ store, at: now(), now, avatar })
       }
-      const store = new Persistence(key, hydrate(cached, remote, zone), demo, refresh)
+      const store = new Persistence(key, cached ?? hydrate(undefined, initialRemote, zone), demo, refresh)
       let wall = Date.now()
       let monotonic = performance.now()
       // Use monotonic elapsed time within the page, and wall time to recover across page loads.
@@ -51,6 +50,21 @@ export function useTracker(account: string) {
       reconcile()
       void store.flush()
       refresh()
+      if (cached && remote) {
+        void remote.then(latest => {
+          if (disposed) return
+          avatar = latest.avatar
+          const journal = store.journal
+          const clean = !store.busy && !journal.pending && journal.dirty.length === 0 &&
+            journal.state.events.length === journal.eventOffset
+          if (clean && latest.revision > journal.revision) {
+            store.journal = hydrate(undefined, latest, zone)
+            store.save(store.journal.state, true)
+            reconcile()
+          }
+          refresh()
+        }).catch(() => { /* The cached tracker stays usable if the refresh fails. */ })
+      }
       let lastRenderAt = now()
       const render = () => {
         const at = now()

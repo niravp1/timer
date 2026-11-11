@@ -14,7 +14,7 @@ export type Batch = {
 }
 
 export async function readRemote(): Promise<Remote> {
-  const { data, error } = await cloud!.rpc('read_tracker')
+  const { data, error } = await cloud!.rpc('read_tracker').retry(false).abortSignal(AbortSignal.timeout(8000))
   if (error) throw error
   return data
 }

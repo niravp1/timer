@@ -142,3 +142,18 @@ dialog::backdrop { background: #090909a0; }
 .profile-photo { width: 72px; height: 72px; object-fit: cover; font-size: 1.4rem; }
 .profile a, .recovery-link a { color: var(--primary); text-underline-offset: 3px; }
 .recovery-link { margin: 18px 0 0; font-size: .9rem; }
+
+.session-report { --focused: #8dbbaf; --pause: #dfab75; --away: #a1b1d7; --included: #c2b2d8; }
+.session-report .focus { --category: var(--focused); }
+.session-report .manual_pause { --category: var(--pause); }
+.session-report .system_interruption { --category: var(--away); }
+.session-report .included_break { --category: var(--included); }
+.session-report .timeline { height: 12px; }
+.session-report .timeline > span { background: var(--category); }
+.session-legend { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 0; font-size: .85rem; }
+.session-legend li { color: var(--category); }
+.session-legend li::before { content: '●'; margin-right: 5px; }
+.session-report .intervals li { border-left: 3px solid var(--category); padding-left: 10px; }
+.session-report .intervals strong { color: var(--category); }
+.session-report .intervals small { display: block; color: var(--muted); margin-top: 4px; }
+.session-notes { color: var(--muted); font-size: .875rem; }

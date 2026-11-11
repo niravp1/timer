@@ -27,7 +27,7 @@ describe('focus and break accounting', () => {
     expect(state.blocks).toHaveLength(1)
     expect(state.blocks[0].cycles[0].rest?.end).toBe(at('12:57'))
     expect(activity(state).start).toBe(at('12:57'))
-    expect(sum(state, '12:57')).toMatchObject({ rest: 23 * minute, included: 15 * minute, overage: 8 * minute, pauses: 34 * minute })
+    expect(sum(state, '12:57')).toMatchObject({ rest: 23 * minute, included: 15 * minute, overage: 8 * minute, pauses: 34 * minute, extra: 42 * minute })
   })
 
   it('T2 chips away at one target', () => {

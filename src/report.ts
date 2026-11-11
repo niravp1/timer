@@ -31,5 +31,5 @@ export function report(state: Tracker, day: Temporal.PlainDate, now: number) {
       return cycle.start < to && (end > from || cycle.start >= from)
     })
   })
-  return { ...totals, entries }
+  return { ...totals, extra: totals.pauses + totals.overage, entries }
 }
