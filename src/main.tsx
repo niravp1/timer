@@ -9,21 +9,34 @@ import { useTracker } from './useTracker'
 import { playSound, sounds, type AlertSound } from './alerts'
 import './style.css'
 
-function Focus({ state, at, dispatch }: {
-  state: Tracker; at: number; dispatch: ReturnType<typeof useTracker>['dispatch']
-}) {
+function timerDisplay(state: Tracker, at: number) {
   const { cycle, mode, interval } = current(state)
-  const locked = (mode === 'idle' || mode === 'break_running') && startLocked(state, at)
   const rest = cycle?.rest
   const elapsed = rest ? span(rest, at) : 0
   const remaining = cycle ? cycle.target - total(cycle, 'focus', at) : state.settings.target
+  const digits = clockText(rest ? elapsed : remaining, !!rest)
+  return { mode, interval, rest, elapsed, digits }
+}
+
+function tabTitle(state: Tracker, at: number) {
+  const { mode, digits } = timerDisplay(state, at)
+  if (mode === 'idle') return startLocked(state, at) ? 'Finished for today' : 'Focus'
+  const label = mode === 'break_running' ? 'Break' : mode === 'focus_paused' ? 'Focus paused' : 'Time to focus!'
+  return `${digits} - ${label}`
+}
+
+function Focus({ state, at, dispatch }: {
+  state: Tracker; at: number; dispatch: ReturnType<typeof useTracker>['dispatch']
+}) {
+  const { mode, interval, rest, elapsed, digits } = timerDisplay(state, at)
+  const locked = (mode === 'idle' || mode === 'break_running') && startLocked(state, at)
   const label = mode === 'focus_running' ? 'Pause' : mode === 'focus_paused' ? 'Resume' : 'Start'
   const status = mode === 'break_running' ? 'Break'
     : mode === 'focus_paused' ? (interval?.kind === 'system_interruption' ? 'Paused while away' : 'Paused')
     : locked ? 'Finished for today' : 'Focus'
   return <section className="timer-panel" aria-label="Focus timer">
     <h1 aria-live="polite">{status}</h1>
-    <div className="digits" role="timer">{clockText(rest ? elapsed : remaining, !!rest)}</div>
+    <div className="digits" role="timer">{digits}</div>
     <div className="timer-note">{rest && elapsed > rest.allowance ? `+${clockText(elapsed - rest.allowance, true)} extra` : ''}</div>
     <button className="primary timer-action" disabled={locked} onClick={() => {
       dispatch(label === 'Start' ? 'start' : label === 'Pause' ? 'pause' : 'resume')
@@ -145,6 +158,9 @@ function Workspace({ user }: { user: User | null }) {
     return () => { active = false; window.clearInterval(interval) }
   }, [avatar, user?.id])
   const state = view?.store.journal.state
+  const title = state && view ? tabTitle(state, view.at) : 'Focus'
+  useEffect(() => { document.title = title }, [title])
+  useEffect(() => () => { document.title = 'Focus' }, [])
   const sync = view?.store.status
   return <>
     <header className="top">
