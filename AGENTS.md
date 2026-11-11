@@ -9,8 +9,8 @@ The authoritative product contract is `SPEC.md`. Review it and all reference ima
 4. Use accurate event timestamps, interval-based calculations, idempotent transitions, and a testable pure domain/state machine. No second-by-second database rows.
 5. Authenticated user data must be isolated by Supabase RLS; never ship or commit secrets. Don't fake cloud persistence or say it works without Supabase configuration.
 6. No Correct Break feature, task lists, monthly view, scores/streaks, or multi-device real-time syncing.
-7. Aim for a calm, eye-friendly Pomofocus-adjacent look from the provided screenshot, not a literal clone, and don't add excess panels. Test mobile/desktop layouts.
-8. Keep reference files under `reference/` and `legacy-stopwatch/`; they are input artifacts, not a mandate to preserve old markup or use the dark iPhone visual style.
+7. Aim for a calm, eye-friendly Pomofocus-adjacent look as documented in `reference/DESIGN.md`, not a literal clone, and don't add excess panels. Test mobile/desktop layouts.
+8. Keep design references under `reference/` and legacy files under `legacy-stopwatch/`; they are input artifacts, not a mandate to preserve old markup or use the dark iPhone visual style.
 9. When finished, run tests and build, include exact commands, describe known limitations, and provide setup/deployment steps, including database SQL/RLS and OAuth redirects.
 10. If missing Supabase credentials blocks real authentication, implement and test the app with a **development-only** fixture/data adapter and document that production requires configuration; never expose test mode in a deployed production build.
 
