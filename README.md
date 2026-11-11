@@ -1,27 +1,38 @@
-# Codex Handoff — Minimal Focus & Break Tracker
+# Focus Tracker — Codex implementation handoff
 
-This directory is a detailed implementation handoff for a new web app. The app **has not been implemented in this bundle**. It includes a precise spec, coding-agent instructions, prior prototype, and screenshots.
+**Status:** Specification and implementation references are committed. The new application is **not yet built**.
 
-## Contents
-- `SPEC.md` — authoritative product + engineering specification, calculations, state transitions, cloud data model, design constraints, acceptance tests.
-- `AGENTS.md` — repository instructions intended for Codex.
-- `CODEX_PROMPT.md` — the task message to paste into Codex.
-- `reference/pomofocus-user-reference.png` — screenshot supplied by the user (UI inspiration only).
-- `reference/stopwatch-laps-reference.png` — previous prototype screenshot.
-- `legacy-stopwatch/` — older single-file stopwatch HTML reference. This is NOT the new app and should not force the framework choice.
+This repository is intended for an OpenAI Codex coding task. The product is a calm, Pomofocus-adjacent personal focus and break tracker, not a conventional Pomodoro task manager.
 
-## Send to Codex Cloud
-1. Extract this folder and upload/commit its **contents** to the root of a new GitHub repository (e.g. `focus-tracker`). Keep screenshot references if you're comfortable storing them in your chosen repo; use private repository if preferred.
-2. Open https://chatgpt.com/codex and prepare/select a Codex Cloud environment with access to that repository. A cloud environment must be connected/published before it can run tasks.
-3. Open `CODEX_PROMPT.md`, paste the task text in a new Codex task and select the connected environment/repo. Codex should inspect `AGENTS.md` and `SPEC.md`, implement, test, and produce code changes for review.
-4. Before enabling real authentication, create a Supabase project. Codex will provide SQL migration and redirect setup steps; you must configure OAuth and environment variables. **Never paste private keys into source control or chats.**
-5. After reviewing test results and implementation, deploy the frontend to Vercel or Netlify (after adding your public Supabase URL/key as environment variables and appropriate OAuth redirects). No home computer is required to keep a deployed static app online.
+## Start the build in Codex
 
-Alternative: with local Codex, open the extracted folder as the working directory and paste the same task prompt. The archive can also be imported/committed into an existing repository, but no existing suitable repository was identified in the current chat.
+1. Open **https://chatgpt.com/codex** and select a GitHub-connected **cloud** coding task.
+2. Select repository **`niravp1/timer`**, branch **`main`**. If the repository doesn't appear, configure Codex's GitHub access to include it.
+3. Copy the task instructions in **[`CODEX_PROMPT.md`](CODEX_PROMPT.md)** into the prompt and submit.
+4. Let Codex implement, run tests, and propose changes. Review its diff/PR before merging.
+5. After the code is ready, follow Codex's Supabase Google OAuth/database setup and deployment instructions. **Never commit environment secrets**.
 
-## Important design policy
-Only main Focus UI is intentionally sparse. Insights live under Metrics: Week → Day → Session. Store precise detailed activity for possible future visualizations, without exposing it all today. No Correct Break action.
+## Product specifications
 
-## Immediate setup instructions
+- [`SPEC.md`](SPEC.md) — authoritative MVP behavior, data schema, edge cases, metrics, and UI requirements.
+- [`AGENTS.md`](AGENTS.md) — repository-wide Codex instructions and constraints.
+- [`TEST_SCENARIOS.md`](TEST_SCENARIOS.md) — acceptance test examples.
+- [`reference/DESIGN.md`](reference/DESIGN.md) — textual UI design reference; original screenshot images are available in the separate chat ZIP.
+- [`legacy-stopwatch/`](legacy-stopwatch/) — old standalone stopwatch prototype, for reference only.
 
-See [`START_HERE.md`](START_HERE.md) for the few remaining steps to create a GitHub repository and start a Codex Cloud coding task.
+## Intended UX
+
+- A single large 60-minute (configurable) focus countdown with **Start**, **Pause**, and **Resume**.
+- When focus completes, an upward-counting break stopwatch starts automatically. Break overage begins after a configurable 15-minute allowance.
+- Starting focus from a break logs the break automatically.
+- Hidden **End Session** ends tracking without an accidental extra-long break.
+- After the configurable **8:30 PM** cutoff, all tracking stops for the local day.
+- Focus pauses when the page closes or reloads; time away is separately tracked instead of counted as manual-pause extra time. Break stopwatch keeps wall-clock time until cutoff or manual closure.
+- Minimal **Metrics** tab with Week → Day → Session detail, and richer raw event logs under the hood.
+- User-specific private cloud storage via Supabase, with no cross-device live synchronization in MVP.
+
+## Important notes
+
+- Nothing here is deployed, and no Supabase or OAuth credentials are configured yet.
+- A Google account, cloud database project, or Vercel setup may require manual authorization.
+- The repository may be public; never commit confidential data, private API keys, or service-role keys.
