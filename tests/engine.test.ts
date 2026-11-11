@@ -27,7 +27,7 @@ describe('focus and break accounting', () => {
     expect(state.blocks).toHaveLength(1)
     expect(state.blocks[0].cycles[0].rest?.end).toBe(at('12:57'))
     expect(activity(state).start).toBe(at('12:57'))
-    expect(sum(state, '12:57')).toMatchObject({ rest: 23 * minute, overage: 8 * minute, extra: 42 * minute })
+    expect(sum(state, '12:57')).toMatchObject({ rest: 23 * minute, included: 15 * minute, overage: 8 * minute, pauses: 34 * minute })
   })
 
   it('T2 chips away at one target', () => {
@@ -43,7 +43,7 @@ describe('focus and break accounting', () => {
     let state = step(empty(), 'start', '10:00')
     state = step(state, 'start', '11:12')
     state = step(state, 'end_session', '12:35')
-    expect(sum(state)).toMatchObject({ rest: 35 * minute, extra: 8 * minute })
+    expect(sum(state)).toMatchObject({ rest: 35 * minute, included: 27 * minute, overage: 8 * minute })
   })
 
   it('T4 freezes focus only on page close and resumes explicitly', () => {
@@ -54,7 +54,7 @@ describe('focus and break accounting', () => {
     expect(current(state).mode).toBe('focus_paused')
     expect(total(activity(state), 'focus', at('11:05'))).toBe(5 * minute)
     expect(total(activity(state), 'system_interruption', at('11:05'))).toBe(60 * minute)
-    expect(sum(state, '11:05').extra).toBe(0)
+    expect(sum(state, '11:05').overage).toBe(0)
   })
 
   it('T5 ends manual pause when the page closes', () => {
@@ -63,7 +63,7 @@ describe('focus and break accounting', () => {
     state = step(state, 'page_closed', '10:07')
     state = recover(state, at('10:30'), crypto.randomUUID())
     expect(total(activity(state), 'system_interruption', at('10:30'))).toBe(23 * minute)
-    expect(sum(state, '10:30')).toMatchObject({ focus: 5 * minute, extra: 2 * minute })
+    expect(sum(state, '10:30')).toMatchObject({ focus: 5 * minute, pauses: 2 * minute, overage: 0 })
   })
 
   it('uses an inferred checkpoint when the page never reported closure', () => {
@@ -78,7 +78,7 @@ describe('focus and break accounting', () => {
     state = step(state, 'page_closed', '12:05')
     state = recover(state, at('14:00'), crypto.randomUUID())
     expect(current(state).mode).toBe('break_running')
-    expect(sum(state, '14:00')).toMatchObject({ rest: 120 * minute, extra: 105 * minute })
+    expect(sum(state, '14:00')).toMatchObject({ rest: 120 * minute, overage: 105 * minute })
   })
 
   it('T7 ends a break at yesterday’s cutoff', () => {
@@ -86,7 +86,7 @@ describe('focus and break accounting', () => {
     state = step(state, 'page_closed', '20:05')
     state = recover(state, at('09:00', '2026-11-10'), crypto.randomUUID())
     expect(activity(state).rest).toMatchObject({ end: at('20:30'), reason: 'daily_cutoff' })
-    expect(sum(state)).toMatchObject({ rest: 30 * minute, extra: 15 * minute })
+    expect(sum(state)).toMatchObject({ rest: 30 * minute, overage: 15 * minute })
   })
 
   it('T8 credits partial focus, locks Start, and gives cutoff priority over completion', () => {
@@ -105,7 +105,7 @@ describe('focus and break accounting', () => {
     let state = step(step(empty(), 'start', '19:00'), 'page_closed', '19:05')
     state = recover(state, at('09:00', '2026-11-10'), crypto.randomUUID())
     expect(total(activity(state), 'system_interruption', at('20:30'))).toBe(85 * minute)
-    expect(sum(state)).toMatchObject({ focus: 5 * minute, extra: 0 })
+    expect(sum(state)).toMatchObject({ focus: 5 * minute, overage: 0 })
   })
 
   it('T10 ends partial work or break and leaves gaps untracked', () => {
@@ -114,7 +114,7 @@ describe('focus and break accounting', () => {
     expect(current(state).mode).toBe('idle')
     state = step(step(state, 'start', '11:00'), 'end_session', '12:19')
     expect(state.blocks).toHaveLength(2)
-    expect(sum(state)).toMatchObject({ focus: 77 * minute, rest: 19 * minute, extra: 4 * minute })
+    expect(sum(state)).toMatchObject({ focus: 77 * minute, rest: 19 * minute, overage: 4 * minute })
   })
 
   it('T11 ignores duplicate and inapplicable Start actions', () => {
@@ -129,9 +129,9 @@ describe('focus and break accounting', () => {
     const cycle = activity(state)
     cycle.rest!.start = at('23:50')
     cycle.rest!.end = at('00:15', '2026-11-10')
-    expect(sum(state)).toMatchObject({ rest: 10 * minute, overage: 0 })
+    expect(sum(state)).toMatchObject({ rest: 10 * minute, included: 10 * minute, overage: 0 })
     expect(report(state, localDay(at('09:00', '2026-11-10'), zone), at('09:00', '2026-11-10')))
-      .toMatchObject({ rest: 15 * minute, overage: 10 * minute })
+      .toMatchObject({ rest: 15 * minute, included: 5 * minute, overage: 10 * minute })
     expect(weekOf(at('10:00', '2026-11-15'), zone).toString()).toBe('2026-11-09')
   })
 

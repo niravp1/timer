@@ -7,11 +7,11 @@ import { duration } from './time'
 const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const dayLabel = (day: Temporal.PlainDate) => day.toLocaleString(undefined, { month: 'short', day: 'numeric' })
 
-function Totals({ focus, rest, extra }: { focus: number; rest: number; extra: number }) {
+function Totals({ focus, included, overage }: { focus: number; included: number; overage: number }) {
   return <dl className="totals">
     <div><dt>Focused</dt><dd>{duration(focus)}</dd></div>
-    <div><dt>Break time</dt><dd>{duration(rest)}</dd></div>
-    <div><dt>Extra time</dt><dd>{duration(extra)}</dd></div>
+    <div><dt>Break time</dt><dd>{duration(included)}</dd></div>
+    <div><dt>Extra time</dt><dd>{duration(overage)}</dd></div>
   </dl>
 }
 
@@ -21,7 +21,7 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
   const [selected, setSelected] = useState<string>()
   const days = weekdays.map((_, index) => week.add({ days: index }))
   const reports = days.map(date => report(state, date, at))
-  const maximum = Math.max(1, ...reports.map(result => result.extra))
+  const maximum = Math.max(1, ...reports.map(({ focus, included, overage }) => focus + included + overage))
   const daily = day ? report(state, day, at) : undefined
   const cycle = daily?.entries.find(entry => entry.id === selected)
   const formatter = new Intl.DateTimeFormat(undefined, {
@@ -93,13 +93,7 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
     <button className="quiet" onClick={() => setDay(undefined)}>← Week</button>
     <h1>{day.toLocaleString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h1>
     <Totals {...daily} />
-    <h2>What counted as extra time</h2>
-    <dl className="extra-breakdown">
-      <div><dt>Focus paused by you<small>Time the timer stayed paused after you pressed Pause.</small></dt>
-        <dd>{daily.pauses > 0 ? duration(daily.pauses) : 'No manual pauses'}</dd></div>
-      <div><dt>Breaks past their allowance<small>Only the time after the included break ends.</small></dt>
-        <dd>{daily.overage > 0 ? duration(daily.overage) : daily.rest > 0 ? 'Within allowance' : 'No breaks recorded'}</dd></div>
-    </dl>
+    <p className="split">Break time includes the portion within each break’s allowance. Extra time is the portion after it.</p>
     <h2>Activity</h2>
     {daily.entries.length ? <ul className="activity-list">{daily.entries.map(entry)}</ul> : <p>No activity for this day.</p>}
   </section>
@@ -113,16 +107,28 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
       </div>
     </div>
     <Totals focus={reports.reduce((sum, item) => sum + item.focus, 0)}
-      rest={reports.reduce((sum, item) => sum + item.rest, 0)}
-      extra={reports.reduce((sum, item) => sum + item.extra, 0)} />
-    <h2>Extra time by day</h2>
-    <p className="split">Focus time you paused, plus break time past the included allowance.</p>
-    <div className="chart">{reports.map((item, index) => <button
-      key={weekdays[index]} aria-label={`${weekdays[index]}, ${dayLabel(days[index])}, ${duration(item.extra)} extra`}
-      onClick={() => setDay(days[index])}>
-      <span>{duration(item.extra)}</span>
-      <span className="bar-track"><span className="bar" style={{ height: `${100 * item.extra / maximum}%` }} /></span>
-      <span>{weekdays[index]}</span>
-    </button>)}</div>
+      included={reports.reduce((sum, item) => sum + item.included, 0)}
+      overage={reports.reduce((sum, item) => sum + item.overage, 0)} />
+    <h2>Time breakdown by day</h2>
+    <ul className="chart-legend">
+      <li><span className="chart-included" />Focus + included breaks</li>
+      <li><span className="chart-extra" />Extra break time</li>
+    </ul>
+    <div className="chart">{reports.map(({ focus, included, overage }, index) => {
+      const covered = focus + included
+      const tracked = covered + overage
+      return <button key={weekdays[index]}
+        aria-label={`${weekdays[index]}, ${dayLabel(days[index])}, ${duration(covered)} focus and included breaks, ${duration(overage)} extra break time`}
+        onClick={() => setDay(days[index])}>
+        <span>{duration(tracked)}</span>
+        <span className="bar-track" aria-hidden="true">
+          <span className="bar" style={{ height: `${100 * tracked / maximum}%` }}>
+            <span className="chart-extra" style={{ flexGrow: overage }} />
+            <span className="chart-included" style={{ flexGrow: covered }} />
+          </span>
+        </span>
+        <span>{weekdays[index]}</span>
+      </button>
+    })}</div>
   </section>
 }
