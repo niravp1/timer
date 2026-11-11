@@ -12,7 +12,7 @@ test('counts focus, preserves remaining time on reload, and saves an early sessi
   expect((await page.request.get(icon!)).headers()['content-type']).toContain('image/png')
   await page.getByRole('button', { name: 'Start', exact: true }).click()
   await page.clock.fastForward(300_000)
-  await expect(page).toHaveTitle(/^55:00 - Time to focus!$/)
+  await expect(page).toHaveTitle('55:00')
   await page.getByRole('button', { name: 'Pause', exact: true }).click()
   await expect(page.getByRole('timer')).toHaveText('55:00')
   await page.clock.fastForward(120_000)

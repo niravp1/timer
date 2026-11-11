@@ -22,7 +22,8 @@ function timerDisplay(state: Tracker, at: number) {
 function tabTitle(state: Tracker, at: number) {
   const { mode, digits } = timerDisplay(state, at)
   if (mode === 'idle') return startLocked(state, at) ? 'Finished for today' : 'Focus'
-  const label = mode === 'break_running' ? 'Break' : mode === 'focus_paused' ? 'Focus paused' : 'Time to focus!'
+  if (mode === 'focus_running') return digits
+  const label = mode === 'break_running' ? 'Break' : 'Focus paused'
   return `${digits} - ${label}`
 }
 
