@@ -123,7 +123,7 @@ export class Persistence {
       acknowledged = true
     } catch (error) {
       const failure = error as { code?: string; message?: string }
-      if (failure.code === '40001' || failure.message === 'Tracker revision changed') {
+      if (failure.code === 'PT409' || failure.code === '40001' || failure.message === 'Tracker revision changed') {
         try {
           const latest = await this.load()
           const reconciled = latest.revision > revision ? reconcileJournal(this.journal, latest) : undefined

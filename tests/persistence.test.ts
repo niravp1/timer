@@ -44,7 +44,9 @@ beforeAll(async () => {
     grant select, insert, update on storage.objects to authenticated;
   `)
   for (const user of users) await db.query('insert into auth.users values ($1)', [user])
-  await db.exec(await readFile(new URL('../supabase/migrations/202611110001_focus_tracker.sql', import.meta.url), 'utf8'))
+  for (const migration of ['202611110001_focus_tracker.sql', '202611110002_tracker_revision_http_conflict.sql']) {
+    await db.exec(await readFile(new URL(`../supabase/migrations/${migration}`, import.meta.url), 'utf8'))
+  }
 })
 
 afterAll(async () => { await db?.close(); vi.unstubAllGlobals() })
@@ -56,7 +58,7 @@ describe('cloud persistence and account isolation', () => {
     const batch = { id: crypto.randomUUID(), revision: 0, settings, checkpoint: at, blocks: running.blocks, events: running.events }
     expect(await write(batch)).toBe(1)
     expect(await write(batch)).toBe(1)
-    await expect(write({ ...batch, id: crypto.randomUUID() })).rejects.toMatchObject({ code: '40001' })
+    await expect(write({ ...batch, id: crypto.randomUUID() })).rejects.toMatchObject({ code: 'PT409' })
     const closed = transition(running, { type: 'end_session', at: at + 1000, id: crypto.randomUUID() })
     const second = transition(closed, { type: 'start', at: at + 2000, id: crypto.randomUUID() })
     const malformed = structuredClone(second.blocks)
