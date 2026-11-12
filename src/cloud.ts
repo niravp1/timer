@@ -3,8 +3,8 @@ import { initial, type ActivityEvent, type Block, type Tracker } from './engine'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-export const cloud = url && key ? createClient(url, key) : undefined
-export const demo = import.meta.env.DEV && !cloud
+export const demo = import.meta.env.DEV
+export const cloud = !demo && url && key ? createClient(url, key) : undefined
 export const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 
 export type Remote = { revision: number; state: Tracker | null; avatar: string | null }

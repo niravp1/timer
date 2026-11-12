@@ -151,29 +151,25 @@ function Workspace({ user }: { user: User | null }) {
   useEffect(() => { document.title = title }, [title])
   useEffect(() => () => { document.title = 'Focus' }, [])
   const sync = view?.store.status
-  const [restoring, setRestoring] = useState(false)
-  const showSync = sync === 'conflict' || sync === 'unavailable' || sync === 'pending'
-  async function restoreCloud() {
-    if (!view || restoring) return
-    setRestoring(true)
-    setAuthError('')
-    try {
-      const backup = new Blob([JSON.stringify(view.store.journal.state, null, 2)], { type: 'application/json' })
-      await view.store.restoreCloud()
-      const url = URL.createObjectURL(backup)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = 'focus-tracker-sync-backup.json'
-      link.click()
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000)
-    } catch {
-      setAuthError('Could not load cloud history. Your local changes are still here.')
-    } finally {
-      setRestoring(false)
-    }
+  const backups = page === 'settings' ? view?.store.backups() : undefined
+  function downloadBackups() {
+    const backup = new Blob([JSON.stringify(backups, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(backup)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'focus-tracker-sync-backups.json'
+    link.click()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
   return <>
     <header className="top">
+      {user && <button className="avatar header-avatar" type="button" aria-label="Open profile"
+        aria-current={page === 'profile' ? 'page' : undefined} onClick={() => {
+          if (menu.current) menu.current.open = false
+          setPage('profile')
+        }}>
+        {image ? <img src={image} alt="" referrerPolicy="no-referrer" /> : <span aria-hidden="true">●</span>}
+      </button>}
       <details className="app-menu" ref={menu} onKeyDown={event => {
         if (event.key === 'Escape' && menu.current?.open) closeMenu()
       }} onBlur={event => {
@@ -213,17 +209,12 @@ function Workspace({ user }: { user: User | null }) {
             const { error } = await cloud!.auth.signOut()
             if (error) setAuthError(error.message)
           }} />}
-        {sync === 'conflict' && page !== 'settings' && <button className="quiet sync" onClick={() => setPage('settings')}>
-          Cloud sync needs attention
-        </button>}
-        {(page === 'settings' || sync === 'unavailable') && showSync && <div className="sync" role="status">
-          {sync === 'pending' && 'Cloud backup is pending. Changes are saved in this browser.'}
-          {sync === 'conflict' && <>
-            <p>This browser and the cloud have overlapping changes. Save a backup of this browser’s activity before reopening cloud history.</p>
-            <button className="quiet" disabled={restoring} onClick={() => void restoreCloud()}>Back up and use cloud history</button>
-          </>}
-          {sync === 'unavailable' && 'Browser storage is unavailable. Recent progress may be lost if you close this page.'}
+        {page === 'settings' && !!backups?.length && <div className="sync">
+          <button className="quiet" onClick={downloadBackups}>Download local sync backups</button>
         </div>}
+        {sync === 'unavailable' && <p className="sync" role="status">
+          Browser storage is unavailable. Keep this tab open to protect unsynced activity.
+        </p>}
       </>}
       {authError && <p role="alert">{authError}</p>}
     </main>

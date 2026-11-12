@@ -1,5 +1,5 @@
 import { type Batch, type Remote, mergeInitial, readRemote, writeRemote } from './cloud'
-import { type Tracker, defaults, recover } from './engine'
+import { type Tracker, defaults } from './engine'
 
 export type Journal = {
   state: Tracker; revision: number; dirty: string[]; eventOffset: number; pending?: Batch
@@ -53,7 +53,9 @@ export function reconcileJournal(local: Journal, remote: Remote): Journal | unde
 export class Persistence {
   journal: Journal
   busy = false
-  status: 'saved' | 'pending' | 'conflict' | 'unavailable' = 'saved'
+  status: 'saved' | 'pending' | 'unavailable' = 'saved'
+  private failures = 0
+  private retryAt = 0
   constructor(
     private key: string, journal: Journal, private offlineDemo: boolean,
     private notify: () => void, private send = writeRemote, private load = readRemote,
@@ -84,19 +86,29 @@ export class Persistence {
     }
   }
 
-  async restoreCloud() {
-    const remote = await this.load()
+  backups(): Journal[] {
+    try {
+      const raw = localStorage.getItem(`${this.key}:sync-backup`)
+      if (!raw) return []
+      const data = JSON.parse(raw) as Journal | Journal[]
+      return Array.isArray(data) ? data : [data]
+    } catch {
+      return []
+    }
+  }
+
+  private useCloudWithBackup(remote: Remote) {
     const previous = this.journal
     const state = mergeInitial(remote, previous.state.settings)
-    // Keep the browser copy recoverable even if a file download is blocked.
-    localStorage.setItem(`${this.key}:sync-backup`, JSON.stringify(previous))
-    this.journal = { state, revision: remote.revision, dirty: [], eventOffset: state.events.length }
+    localStorage.setItem(`${this.key}:sync-backup`, JSON.stringify([...this.backups(), previous]))
+    const replacement = { state, revision: remote.revision, dirty: [], eventOffset: state.events.length }
+    localStorage.setItem(this.key, JSON.stringify(replacement))
+    this.journal = replacement
     this.status = 'saved'
-    this.save(recover(state, Date.now(), crypto.randomUUID()))
   }
 
   async flush() {
-    if (this.offlineDemo || this.busy || this.status === 'conflict') return
+    if (this.offlineDemo || this.busy || Date.now() < this.retryAt) return
     const { state, dirty, eventOffset, revision, pending } = this.journal
     if (!pending && !dirty.length && eventOffset === state.events.length) return
     const batch = pending ?? {
@@ -120,25 +132,34 @@ export class Persistence {
       this.journal = { state: latest.state, revision: nextRevision, dirty: remaining, eventOffset: eventOffset + batch.events.length }
       this.status = 'saved'
       this.store()
+      this.failures = 0
+      this.retryAt = 0
       acknowledged = true
     } catch (error) {
       const failure = error as { code?: string; message?: string }
       if (failure.code === 'PT409' || failure.code === '40001' || failure.message === 'Tracker revision changed') {
         try {
           const latest = await this.load()
-          const reconciled = latest.revision > revision ? reconcileJournal(this.journal, latest) : undefined
-          if (reconciled) {
-            this.journal = reconciled
-            this.status = 'saved'
-            this.store()
-            acknowledged = true
-          } else {
-            this.status = 'conflict'
+          if (latest.revision > revision && latest.state) {
+            const reconciled = reconcileJournal(this.journal, latest)
+            if (reconciled) {
+              this.journal = reconciled
+              this.status = 'saved'
+              this.store()
+            } else {
+              try {
+                this.useCloudWithBackup(latest)
+              } catch {
+                this.status = 'unavailable'
+              }
+            }
           }
         } catch {
-          // Keep the queued batch intact while the cloud read is unavailable.
+          // The queued batch stays intact when the cloud read fails.
         }
       }
+      this.retryAt = Date.now() + Math.min(120_000, 5_000 * 2 ** this.failures)
+      this.failures = Math.min(this.failures + 1, 5)
     } finally {
       this.busy = false
       this.notify()
