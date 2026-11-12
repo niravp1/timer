@@ -15,8 +15,8 @@ function Totals({ focus, included, extra }: { focus: number; included: number; e
   </dl>
 }
 
-function TrackedTotals({ focus, included, extra, tracked, away }: {
-  focus: number; included: number; extra: number; tracked: number; away: number
+function TrackedTotals({ focus, included, extra, tracked, away = 0 }: {
+  focus: number; included: number; extra: number; tracked: number; away?: number
 }) {
   return <>
     <Totals focus={focus} included={included} extra={extra} />
@@ -39,8 +39,7 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
     included: sum.included + item.included,
     extra: sum.extra + item.extra,
     tracked: sum.tracked + item.tracked,
-    away: sum.away + item.away,
-  }), { focus: 0, included: 0, extra: 0, tracked: 0, away: 0 })
+  }), { focus: 0, included: 0, extra: 0, tracked: 0 })
   const daily = day ? report(state, day, at) : undefined
   const cycle = daily?.entries.find(entry => entry.cycle.id === selected)?.cycle
   const formatter = new Intl.DateTimeFormat(undefined, {
@@ -178,7 +177,7 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
       <li><span className="chart-included" />Focus + included breaks</li>
       <li><span className="chart-extra" />Extra time</li>
     </ul>
-    <div className="chart">{reports.map(({ focus, included, pauses, pauseIncluded, overage, extra, tracked, away }, index) => {
+    <div className="chart">{reports.map(({ focus, included, pauses, pauseIncluded, overage, extra, tracked }, index) => {
       const covered = focus + included
       const tooltipId = `day-breakdown-${index}`
       return <div className="chart-day" key={weekdays[index]}>
@@ -199,7 +198,6 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
           <span>Included break <strong>{durationClockText(included)}</strong></span>
           <span>Extra pause <strong>{durationClockText(pauses - pauseIncluded)}</strong></span>
           <span>Extra break <strong>{durationClockText(overage)}</strong></span>
-          {away > 0 && <span>Away <strong>{durationClockText(away)}</strong></span>}
         </div>
       </div>
     })}</div>
