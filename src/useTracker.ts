@@ -17,7 +17,7 @@ function announceCompletion(previous: Journal['state'], next: Journal['state']) 
 }
 
 export function useTracker(account: string) {
-  const [view, setView] = useState<{ store: Persistence; at: number; now: () => number; avatar: string | null }>()
+  const [view, setView] = useState<{ store: Persistence; at: number; now: () => number; avatar: string | null | undefined }>()
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
   useEffect(() => {
@@ -34,7 +34,8 @@ export function useTracker(account: string) {
       const remote = cloud ? readRemote() : undefined
       const initialRemote = !cached && remote ? await remote : { revision: 0, state: null, avatar: null }
       if (disposed) return
-      let avatar = initialRemote.avatar
+      // A cached journal does not tell us whether the account has an uploaded avatar.
+      let avatar = cached && remote ? undefined : initialRemote.avatar
       const refresh = () => {
         if (!disposed) setView({ store, at: now(), now, avatar })
       }
