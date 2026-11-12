@@ -4,6 +4,7 @@ import type { User } from '@supabase/supabase-js'
 import { avatarUrl, cloud, demo } from './cloud'
 import { current, span, startLocked, total, type Settings, type Tracker } from './engine'
 import { breakClockText, clockText, minute } from './time'
+import { breakAllowances } from './report'
 import { Metrics } from './Metrics'
 import { Profile, RecoveryLink } from './Profile'
 import { useTracker } from './useTracker'
@@ -31,6 +32,12 @@ function Focus({ state, at, dispatch }: {
   state: Tracker; at: number; dispatch: ReturnType<typeof useTracker>['dispatch']
 }) {
   const { mode, interval, rest, elapsed, digits } = timerDisplay(state, at)
+  const allowances = rest || interval?.kind === 'manual_pause' ? breakAllowances(state) : undefined
+  const allowance = rest ? allowances?.get(rest.id) ?? 0 : 0
+  const pauseAllowance = interval?.kind === 'manual_pause' ? allowances?.get(interval.id) ?? 0 : 0
+  const pauseElapsed = interval?.kind === 'manual_pause' ? span(interval, at) : 0
+  const pauseLeft = Math.max(0, pauseAllowance - pauseElapsed)
+  const extra = rest ? elapsed - allowance : pauseElapsed - pauseAllowance
   const locked = (mode === 'idle' || mode === 'break_running') && startLocked(state, at)
   const label = mode === 'focus_running' ? 'Pause' : mode === 'focus_paused' ? 'Resume' : 'Start'
   const status = mode === 'break_running' ? 'Break'
@@ -39,7 +46,7 @@ function Focus({ state, at, dispatch }: {
   return <section className="timer-panel" aria-label="Focus timer">
     <h1 aria-live="polite">{status}</h1>
     <div className={rest && digits.length > 5 ? 'digits break-digits' : 'digits'} role="timer">{digits}</div>
-    <div className="timer-note">{rest && elapsed > rest.allowance ? `+${breakClockText(elapsed - rest.allowance)} extra` : ''}</div>
+    <div className="timer-note">{extra > 0 ? `+${breakClockText(extra)} extra` : pauseLeft > 0 ? `${breakClockText(pauseLeft)} of included break left` : ''}</div>
     <button className="primary timer-action" disabled={locked} onClick={() => {
       dispatch(label === 'Start' ? 'start' : label === 'Pause' ? 'pause' : 'resume')
     }}>{label}</button>

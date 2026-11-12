@@ -39,11 +39,33 @@ describe('focus and break accounting', () => {
     expect(sum(state, '11:15')).toMatchObject({ focus: 60 * minute, pauses: 15 * minute })
   })
 
-  it('T3 grants a fresh allowance for each break', () => {
+  it('adds each earned allowance to the unused same-day balance', () => {
     let state = step(empty(), 'start', '10:00')
     state = step(state, 'start', '11:12')
     state = step(state, 'end_session', '12:35')
-    expect(sum(state)).toMatchObject({ rest: 35 * minute, included: 27 * minute, overage: 8 * minute })
+    expect(sum(state)).toMatchObject({ rest: 35 * minute, included: 30 * minute, overage: 5 * minute })
+  })
+
+  it('uses the unused 12 minutes for a manual pause and charges only the excess', () => {
+    let state = step(empty(), 'start', '09:00')
+    state = step(state, 'start', '10:03')
+    state = step(state, 'pause', '10:13')
+    expect(sum(state, '10:18')).toMatchObject({ focus: 70 * minute, included: 8 * minute, extra: 0 })
+    state = step(state, 'resume', '10:28')
+    expect(sum(state, '10:28')).toMatchObject({
+      focus: 70 * minute, included: 15 * minute, extra: 3 * minute,
+      entries: [{ rest: 3 * minute }, { pauses: 15 * minute, pauseIncluded: 12 * minute }],
+    })
+  })
+
+  it('starts a new day without yesterday’s unused allowance', () => {
+    let state = step(step(empty(), 'start', '09:00'), 'end_session', '10:03')
+    const tomorrow = (type: 'start' | 'pause', time: string) =>
+      transition(state, { type, at: at(time, '2026-11-10'), id: crypto.randomUUID() })
+    state = tomorrow('start', '09:00')
+    state = tomorrow('pause', '09:05')
+    const now = at('09:10', '2026-11-10')
+    expect(report(state, localDay(now, zone), now)).toMatchObject({ included: 0, extra: 5 * minute })
   })
 
   it('T4 freezes focus only on page close and resumes explicitly', () => {

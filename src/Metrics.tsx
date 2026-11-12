@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Temporal } from '@js-temporal/polyfill'
 import { span, total, type Tracker } from './engine'
-import { report, weekOf } from './report'
+import { breakAllowances, report, weekOf } from './report'
 import { durationClockText, duration, preciseDuration } from './time'
 
 const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -44,30 +44,43 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
     const away = total(cycle, 'system_interruption', at)
     const rest = cycle.rest
     const elapsed = rest ? span(rest, at) : 0
-    const included = rest ? Math.min(rest.allowance, elapsed) : 0
+    const allowances = breakAllowances(state)
+    const allowed = rest ? allowances.get(rest.id) ?? 0 : 0
+    const included = Math.min(allowed, elapsed)
+    const pauseIncluded = cycle.intervals.reduce((sum, interval) => interval.kind === 'manual_pause'
+      ? sum + Math.min(span(interval, at), allowances.get(interval.id) ?? 0) : sum, 0)
+    const pauseExtra = paused - pauseIncluded
     const overage = elapsed - included
     const status = cycle.status === 'completed' ? 'Focus goal reached'
       : cycle.reason === 'daily_cutoff' ? 'Ended at daily cutoff'
       : cycle.status === 'ended_early' ? 'Ended early'
-      : cycle.status === 'paused' ? 'Paused' : 'In progress'
+      : cycle.status === 'paused' ? (cycle.intervals.at(-1)?.kind === 'system_interruption' ? 'Paused while away' : 'Paused') : 'In progress'
 
     return <section className="report session-report">
       <button className="quiet" onClick={() => setSelected(undefined)}>← Day</button>
       <h1>Focus session</h1>
       <p className="session-meta">{range(cycle.start, cycle.end)} · {status}</p>
-      <Totals focus={focused} included={included} extra={paused + overage} />
+      <Totals focus={focused} included={included + pauseIncluded} extra={pauseExtra + overage} />
 
       <h2>Session timeline</h2>
       <div className="timeline" aria-hidden="true">
-        {cycle.intervals.map(interval => <span key={interval.id} className={interval.kind} style={{ flexGrow: span(interval, at) }} />)}
+        {cycle.intervals.map(interval => {
+          const elapsed = span(interval, at)
+          if (interval.kind !== 'manual_pause') return <span key={interval.id} className={interval.kind} style={{ flexGrow: elapsed }} />
+          const covered = Math.min(elapsed, allowances.get(interval.id) ?? 0)
+          return <Fragment key={interval.id}>
+            {covered > 0 && <span className="included_break" style={{ flexGrow: covered }} />}
+            {elapsed > covered && <span className="manual_pause" style={{ flexGrow: elapsed - covered }} />}
+          </Fragment>
+        })}
         {included > 0 && <span className="included_break" style={{ flexGrow: included }} />}
         {overage > 0 && <span className="manual_pause" style={{ flexGrow: overage }} />}
       </div>
       <ul className="session-legend">
         <li className="focus">Focused</li>
-        {paused + overage > 0 && <li className="manual_pause">Extra time</li>}
+        {pauseExtra + overage > 0 && <li className="manual_pause">Extra time</li>}
         {away > 0 && <li className="system_interruption">Away</li>}
-        {included > 0 && <li className="included_break">Included break</li>}
+        {included + pauseIncluded > 0 && <li className="included_break">Included break</li>}
       </ul>
       <ol className="intervals">
         {cycle.intervals.map(interval => <li key={interval.id} className={interval.kind}>
@@ -82,22 +95,31 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
       <dl className="details session-notes">
         <div><dt>Focus goal</dt><dd>{preciseDuration(cycle.target)}</dd></div>
         <div><dt>Elapsed focus session</dt><dd>{preciseDuration(span(cycle, at))}</dd></div>
-        {rest && <div><dt>Break allowance</dt><dd>{preciseDuration(rest.allowance)}</dd></div>}
-        {paused > 0 && <div><dt>Extra from manual pauses</dt><dd>{preciseDuration(paused)}</dd></div>}
+        {rest && <div><dt>Break allowance</dt><dd>{preciseDuration(allowed)}</dd></div>}
+        {pauseIncluded > 0 && <div><dt>Break time from manual pauses</dt><dd>{preciseDuration(pauseIncluded)}</dd></div>}
+        {pauseExtra > 0 && <div><dt>Extra from manual pauses</dt><dd>{preciseDuration(pauseExtra)}</dd></div>}
         {overage > 0 && <div><dt>Extra from break overage</dt><dd>{preciseDuration(overage)}</dd></div>}
       </dl>
     </section>
   }
 
-  function entry({ cycle, focus, pauses, rest: breakTime, overage, away }: ReturnType<typeof report>['entries'][number]) {
+  function entry({ cycle, focus, pauses, pauseIncluded, rest: breakTime, overage, away }: ReturnType<typeof report>['entries'][number]) {
     const rest = cycle.rest
     return <li key={cycle.id}>
       <button className="entry" onClick={() => setSelected(cycle.id)}>
         <span className="entry-content">
           <span className="entry-line">
-            <span><strong>Focus session</strong><small>{activityTime(cycle.start, cycle.end)}</small></span>
-            <span><strong>{preciseDuration(focus)} focused</strong>{pauses > 0 && <small>{preciseDuration(pauses)} paused</small>}{away > 0 && <small>{preciseDuration(away)} away</small>}</span>
+            <span><strong>Focus session</strong><small>{cycle.status === 'paused'
+              ? `${shortClock.format(cycle.start)} · ${cycle.intervals.at(-1)?.kind === 'system_interruption' ? 'Paused while away' : 'Paused'}`
+              : activityTime(cycle.start, cycle.end)}</small></span>
+            <span><strong>{preciseDuration(focus)} focused</strong>{away > 0 && <small>{preciseDuration(away)} away</small>}</span>
           </span>
+          {pauses > 0 && <span className="entry-line">
+            <span>Manual pause<small>{pauseIncluded > 0 && `${preciseDuration(pauseIncluded)} included`}
+              {pauseIncluded > 0 && pauses > pauseIncluded && ' · '}
+              {pauses > pauseIncluded && `${preciseDuration(pauses - pauseIncluded)} extra`}</small></span>
+            <span>{preciseDuration(pauses)}</span>
+          </span>}
           {rest && breakTime > 0 && <span className="entry-line">
             <span>Break<small>{activityTime(rest.start, rest.end)}</small></span>
             <span>{preciseDuration(breakTime)}{overage > 0 && <small>{preciseDuration(overage)} over allowance</small>}</span>
@@ -116,7 +138,7 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
       <div><dt>Away</dt><dd>{preciseDuration(daily.away)}</dd></div>
       <div><dt>Total recorded time</dt><dd>{preciseDuration(daily.recorded)}</dd></div>
     </dl>
-    <p className="split">Break time counts up to your allowance. Extra time includes manual pauses and break time past the allowance. Away is shown separately and included in total recorded time.</p>
+    <p className="split">Completing a focus goal earns break time. Unused time can cover a later pause or break that day. Time past your balance is extra. Away counts only toward total recorded time.</p>
     <h2>Activity</h2>
     {daily.entries.length ? <ul className="activity-list">{daily.entries.map(entry)}</ul> : <p>No activity for this day.</p>}
   </section>
@@ -137,7 +159,7 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
       <li><span className="chart-included" />Focus + included breaks</li>
       <li><span className="chart-extra" />Extra time</li>
     </ul>
-    <div className="chart">{reports.map(({ focus, included, pauses, overage, extra }, index) => {
+    <div className="chart">{reports.map(({ focus, included, pauses, pauseIncluded, overage, extra }, index) => {
       const covered = focus + included
       const tracked = covered + extra
       const tooltipId = `day-breakdown-${index}`
@@ -157,7 +179,7 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
         <div className="chart-tooltip" role="tooltip" id={tooltipId}>
           <span>Focused <strong>{durationClockText(focus)}</strong></span>
           <span>Included break <strong>{durationClockText(included)}</strong></span>
-          <span>Manual pauses <strong>{durationClockText(pauses)}</strong></span>
+          <span>Extra pause <strong>{durationClockText(pauses - pauseIncluded)}</strong></span>
           <span>Extra break <strong>{durationClockText(overage)}</strong></span>
         </div>
       </div>

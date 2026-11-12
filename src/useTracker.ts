@@ -1,3 +1,4 @@
+import { breakAllowances } from './report'
 import { useEffect, useState } from 'react'
 import { current, recover, transition, type Action, type Settings } from './engine'
 import { cloud, demo, readRemote, zone } from './cloud'
@@ -77,8 +78,9 @@ export function useTracker(account: string) {
           store.save({ ...previous, checkpoint: at }, true)
         }
         const rest = current(next).cycle?.rest
-        if (rest && rest.allowance > 0) {
-          const allowanceEnd = rest.start + rest.allowance
+        const allowance = rest ? breakAllowances(next).get(rest.id) ?? 0 : 0
+        if (rest && allowance > 0) {
+          const allowanceEnd = rest.start + allowance
           if (lastRenderAt < allowanceEnd && allowanceEnd <= at) announce(next.settings, 'break-allowance')
         }
         lastRenderAt = at
