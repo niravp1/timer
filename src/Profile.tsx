@@ -9,7 +9,7 @@ export function RecoveryLink() {
 }
 
 export function Profile({ user, image, setImage, signOut }: {
-  user: User; image?: string; setImage: (image?: string) => void; signOut: () => Promise<void>
+  user: User; image?: string; setImage: (file: File) => void; signOut: () => Promise<void>
 }) {
   const initialName = typeof user.user_metadata.tracker_username === 'string' ? user.user_metadata.tracker_username : ''
   const [username, setUsername] = useState(initialName)
@@ -34,16 +34,15 @@ export function Profile({ user, image, setImage, signOut }: {
   return <section className="report settings">
     <h1>Profile</h1>
     <div className="profile">
-      {image
-        ? <img className="avatar profile-photo" src={image} alt="Your profile photo" referrerPolicy="no-referrer" />
-        : <span className="avatar profile-photo" aria-hidden="true">{initialName[0]?.toUpperCase() ?? '•'}</span>}
+      {image && <img className="avatar profile-photo" src={image} alt="Your profile photo" referrerPolicy="no-referrer" />}
       <label>Change profile picture<input type="file" disabled={busy} accept="image/jpeg,image/png,image/webp" onChange={async event => {
         const file = event.currentTarget.files?.[0]
         if (!file) return
         event.currentTarget.value = ''
         setBusy(true)
         try {
-          setImage(await uploadAvatar(file, user))
+          await uploadAvatar(file, user)
+          setImage(file)
           setMessage('Profile picture updated.')
         } catch (error) {
           setMessage((error as Error).message)

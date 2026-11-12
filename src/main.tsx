@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { User } from '@supabase/supabase-js'
+import { readCachedAvatar, rememberAvatar } from './avatarCache'
 import { avatarUrl, cloud, demo } from './cloud'
 import { current, span, startLocked, total, type Settings, type Tracker } from './engine'
 import { breakClockText, clockText, minute } from './time'
@@ -139,20 +140,66 @@ function Workspace({ user }: { user: User | null }) {
     if (menu.current) menu.current.open = false
     menu.current?.querySelector('summary')?.focus()
   }
-  const [image, setImage] = useState<string>()
+  const [photo, setPhoto] = useState<Blob | string>()
+  const [profileImage, setProfileImage] = useState<string>()
   const [authError, setAuthError] = useState('')
-  const [uploaded, setUploaded] = useState(false)
-  const avatar = uploaded ? `${user?.id}/avatar` : view?.avatar
+  const uploaded = useRef(false)
+  const account = user?.id
+  const avatar = view?.avatar
+  const googlePhoto = user?.user_metadata.avatar_url as string | undefined
   useEffect(() => {
-    if (avatar === undefined) return
+    if (!account) return
     let active = true
-    const refresh = () => void avatarUrl(avatar, user)
-      .then(url => { if (active) setImage(url) })
-      .catch(() => { if (active) setImage(undefined) })
-    refresh()
-    const interval = window.setInterval(refresh, 50 * 60_000)
-    return () => { active = false; window.clearInterval(interval) }
-  }, [avatar, user?.id])
+    void readCachedAvatar(account).then(cached => {
+      if (active && cached) setPhoto(current => current ?? cached)
+    })
+    return () => { active = false }
+  }, [account])
+  useEffect(() => {
+    if (!account || avatar === undefined || uploaded.current) return
+    if (!avatar) {
+      setPhoto(googlePhoto)
+      return
+    }
+    const controller = new AbortController()
+    void (async () => {
+      const url = await avatarUrl(avatar, user)
+      if (!url || controller.signal.aborted || uploaded.current) return
+      try {
+        const response = await fetch(url, { signal: controller.signal })
+        if (!response.ok) throw new Error('Could not load profile photo')
+        const picture = await response.blob()
+        if (controller.signal.aborted || uploaded.current) return
+        setPhoto(picture)
+        void rememberAvatar(account, picture)
+      } catch {
+        if (!controller.signal.aborted && !uploaded.current) setPhoto(current => current ?? url)
+      }
+    })().catch(() => { /* Keep the cached picture if signing fails. */ })
+    return () => controller.abort()
+  }, [account, avatar, googlePhoto])
+  useEffect(() => {
+    if (!photo) return
+    const url = typeof photo === 'string' ? photo : URL.createObjectURL(photo)
+    const image = new Image()
+    image.referrerPolicy = 'no-referrer'
+    image.src = url
+    let active = true
+    let displayed = false
+    void image.decode().then(() => {
+      if (active) {
+        displayed = true
+        setProfileImage(url)
+      }
+    }).catch(() => { /* Keep the previously displayed picture if loading fails. */ })
+    return () => {
+      active = false
+      if (!displayed && typeof photo !== 'string') URL.revokeObjectURL(url)
+    }
+  }, [photo])
+  useEffect(() => () => {
+    if (profileImage?.startsWith('blob:')) URL.revokeObjectURL(profileImage)
+  }, [profileImage])
   const state = view?.store.journal.state
   const title = state && view ? tabTitle(state, view.at) : 'Focus'
   useEffect(() => { document.title = title }, [title])
@@ -170,12 +217,12 @@ function Workspace({ user }: { user: User | null }) {
   }
   return <>
     <header className="top">
-      {user && <button className="avatar header-avatar" type="button" aria-label="Open profile"
+      {user && profileImage && <button className="avatar header-avatar" type="button" aria-label="Open profile"
         aria-current={page === 'profile' ? 'page' : undefined} onClick={() => {
           if (menu.current) menu.current.open = false
           setPage('profile')
         }}>
-        {image ? <img src={image} alt="" referrerPolicy="no-referrer" /> : <span aria-hidden="true">●</span>}
+        <img src={profileImage} alt="" referrerPolicy="no-referrer" />
       </button>}
       <details className="app-menu" ref={menu} onKeyDown={event => {
         if (event.key === 'Escape' && menu.current?.open) closeMenu()
@@ -208,8 +255,12 @@ function Workspace({ user }: { user: User | null }) {
         {page === 'metrics' && <Metrics state={state} at={view.at} />}
         {page === 'settings' && <SettingsPage state={state}
           save={settings => dispatch('settings_changed', { ...view.store.journal.state.settings, ...settings })} />}
-        {page === 'profile' && user && <Profile user={user} image={image}
-          setImage={url => { setUploaded(true); setImage(url) }}
+        {page === 'profile' && user && <Profile user={user} image={profileImage}
+          setImage={file => {
+            uploaded.current = true
+            setPhoto(file)
+            void rememberAvatar(user.id, file)
+          }}
           signOut={async () => {
             dispatch('page_closed')
             await view.store.flush()

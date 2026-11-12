@@ -44,7 +44,6 @@ export async function uploadAvatar(file: File, user: User) {
   if (error) throw error
   const { error: profileError } = await cloud!.rpc('set_tracker_avatar', { object_path: path })
   if (profileError) throw profileError
-  return avatarUrl(path, user)
 }
 
 export async function saveUsername(username: string) {
