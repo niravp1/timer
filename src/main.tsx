@@ -7,7 +7,7 @@ import { breakClockText, clockText, minute } from './time'
 import { Metrics } from './Metrics'
 import { Profile, RecoveryLink } from './Profile'
 import { useTracker } from './useTracker'
-import { playSound, sounds, type AlertSound } from './alerts'
+import { playSound, soundPlayCount, soundPlayOptions, sounds, type AlertSound } from './alerts'
 import './style.css'
 
 function timerDisplay(state: Tracker, at: number) {
@@ -38,7 +38,7 @@ function Focus({ state, at, dispatch }: {
     : locked ? 'Finished for today' : 'Focus'
   return <section className="timer-panel" aria-label="Focus timer">
     <h1 aria-live="polite">{status}</h1>
-    <div className={rest ? 'digits break-digits' : 'digits'} role="timer">{digits}</div>
+    <div className={rest && digits.length > 5 ? 'digits break-digits' : 'digits'} role="timer">{digits}</div>
     <div className="timer-note">{rest && elapsed > rest.allowance ? `+${breakClockText(elapsed - rest.allowance)} extra` : ''}</div>
     <button className="primary timer-action" disabled={locked} onClick={() => {
       dispatch(label === 'Start' ? 'start' : label === 'Pause' ? 'pause' : 'resume')
@@ -49,6 +49,7 @@ function Focus({ state, at, dispatch }: {
 function SettingsPage({ state, save }: { state: Tracker; save: (settings: Partial<Settings>) => void }) {
   const [message, setMessage] = useState('')
   const [sound, setSound] = useState<AlertSound>(state.settings.sound ?? 'chime')
+  const [soundPlays, setSoundPlays] = useState(() => soundPlayCount(state.settings.soundPlays))
   const [permission, setPermission] = useState(() =>
     typeof Notification === 'undefined' ? 'unsupported' : Notification.permission)
   const enableNotifications = async () => {
@@ -65,7 +66,7 @@ function SettingsPage({ state, save }: { state: Tracker; save: (settings: Partia
   const onSave = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
-    save({ sound, target: Number(form.get('target')) * minute, allowance: Number(form.get('allowance')) * minute,
+    save({ sound, soundPlays, target: Number(form.get('target')) * minute, allowance: Number(form.get('allowance')) * minute,
       zone: String(form.get('zone')), time: String(form.get('cutoff')) })
     setMessage('Settings updated.')
   }
@@ -92,9 +93,13 @@ function SettingsPage({ state, save }: { state: Tracker; save: (settings: Partia
           {Object.entries(sounds).map(([value, option]) => <option key={value} value={value}>{option.label}</option>)}
         </select></label>
         <button className="quiet" type="button" disabled={sound === 'silent'} onClick={() =>
-          void playSound(sound).catch(() => setMessage('This browser could not play the sound.'))
+          void playSound(sound, soundPlays).catch(() => setMessage('This browser could not play the sound.'))
         }>Preview sound</button>
       </div>
+      <label>Play each alert sound<select value={soundPlays} disabled={sound === 'silent'}
+        onChange={event => setSoundPlays(soundPlayCount(Number(event.target.value)))}>
+        {soundPlayOptions.map(count => <option key={count} value={count}>{count} {count === 1 ? 'time' : 'times'}</option>)}
+      </select></label>
       <button className="primary">Save settings</button>
     </form>
     <div className="profile">

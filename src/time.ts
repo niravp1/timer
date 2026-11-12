@@ -21,9 +21,14 @@ export function clockText(ms: number) {
   return [Math.floor(seconds / 60), seconds % 60].map(padTime).join(':')
 }
 
-export function breakClockText(ms: number) {
+export function durationClockText(ms: number) {
   const seconds = Math.max(0, Math.floor(ms / 1000))
   return [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map(padTime).join(':')
+}
+
+export function breakClockText(ms: number) {
+  const clock = durationClockText(ms)
+  return clock.startsWith('00:') ? clock.slice(3) : clock
 }
 
 export function duration(ms: number) {

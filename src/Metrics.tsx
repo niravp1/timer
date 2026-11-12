@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Temporal } from '@js-temporal/polyfill'
 import { span, total, type Cycle, type Tracker } from './engine'
 import { report, weekOf } from './report'
-import { breakClockText, duration } from './time'
+import { durationClockText, duration } from './time'
 
 const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const dayLabel = (day: Temporal.PlainDate) => day.toLocaleString(undefined, { month: 'short', day: 'numeric' })
@@ -154,10 +154,10 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
           <span>{weekdays[index]}</span>
         </button>
         <div className="chart-tooltip" role="tooltip" id={tooltipId}>
-          <span>Focused <strong>{breakClockText(focus)}</strong></span>
-          <span>Included break <strong>{breakClockText(included)}</strong></span>
-          <span>Manual pauses <strong>{breakClockText(pauses)}</strong></span>
-          <span>Extra break <strong>{breakClockText(overage)}</strong></span>
+          <span>Focused <strong>{durationClockText(focus)}</strong></span>
+          <span>Included break <strong>{durationClockText(included)}</strong></span>
+          <span>Manual pauses <strong>{durationClockText(pauses)}</strong></span>
+          <span>Extra break <strong>{durationClockText(overage)}</strong></span>
         </div>
       </div>
     })}</div>

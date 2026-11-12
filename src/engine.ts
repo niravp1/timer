@@ -4,7 +4,7 @@ import type { AlertSound } from './alerts'
 
 export type Settings = {
   target: number; allowance: number; time: string; zone: string
-  sound?: AlertSound; notifications?: boolean
+  sound?: AlertSound; soundPlays?: number; notifications?: boolean
 }
 export const defaults = (zone: string): Settings => ({ target: 3600_000, allowance: 900_000, time: '20:30', zone })
 export type Kind = 'focus' | 'manual_pause' | 'system_interruption'

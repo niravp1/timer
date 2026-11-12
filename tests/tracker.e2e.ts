@@ -49,7 +49,7 @@ test('counts break up across reload and switches to the next focus with Start', 
   await page.getByRole('button', { name: 'Start', exact: true }).click()
   await page.clock.fastForward(3600_000)
   await expect(page.getByRole('heading', { name: 'Break', exact: true })).toBeVisible()
-  await expect(page.getByRole('timer')).toHaveText(/^00:00:0/)
+  await expect(page.getByRole('timer')).toHaveText(/^00:0/)
   await page.clock.fastForward(90 * 60_000 + 56_000)
   await page.reload()
   await expect(page.getByRole('timer')).toHaveText(/^01:30:5[6-9]$/)
@@ -81,12 +81,23 @@ test('locks at local cutoff and unlocks the next morning', async ({ page }) => {
 })
 
 test('applies settings and exports stored activity as JSON', async ({ page }) => {
+  await page.evaluate(() => {
+    Reflect.set(window, 'previewNotes', 0)
+    const start = OscillatorNode.prototype.start
+    OscillatorNode.prototype.start = function (when) {
+      start.call(this, when)
+      Reflect.set(window, 'previewNotes', Reflect.get(window, 'previewNotes') + 1)
+    }
+  })
   await page.getByLabel('Menu').click()
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
   await page.getByLabel('Focus target (minutes)').fill('25')
   await page.getByLabel('Included break (minutes)').fill('5')
   await page.getByLabel('Timer alert sound').selectOption('bell')
+  await expect(page.getByLabel('Play each alert sound')).toHaveValue('1')
+  await page.getByLabel('Play each alert sound').selectOption('5')
   await page.getByRole('button', { name: 'Preview sound' }).click()
+  await expect.poll(() => page.evaluate(() => Reflect.get(window, 'previewNotes'))).toBe(10)
   await page.getByRole('button', { name: 'Save settings' }).click()
   await page.getByLabel('Menu').click()
   await page.getByRole('button', { name: 'Focus', exact: true }).click()
@@ -102,7 +113,7 @@ test('applies settings and exports stored activity as JSON', async ({ page }) =>
   const chunks: Buffer[] = []
   for await (const chunk of stream) chunks.push(chunk)
   const backup = JSON.parse(Buffer.concat(chunks).toString('utf8'))
-  expect(backup.settings).toMatchObject({ target: 25 * 60_000, allowance: 5 * 60_000, sound: 'bell' })
+  expect(backup.settings).toMatchObject({ target: 25 * 60_000, allowance: 5 * 60_000, sound: 'bell', soundPlays: 5 })
   expect(backup.blocks).toHaveLength(1)
   expect(backup.events.map((event: { type: string }) => event.type)).toEqual(['settings_changed', 'start'])
 })
@@ -134,11 +145,11 @@ test('notifies once at focus completion and once at the break allowance', async 
   await page.clock.fastForward(60_000)
   expect(await page.evaluate(() => Reflect.get(window, 'focusAlerts'))).toEqual(['Focus time is up'])
   await page.clock.fastForward(14 * 60_000)
-  await expect(page.getByRole('timer')).toHaveText(/^00:15:0/)
+  await expect(page.getByRole('timer')).toHaveText(/^15:0/)
   await page.clock.fastForward(60_000)
-  await expect(page.getByRole('timer')).toHaveText(/^00:16:0/)
+  await expect(page.getByRole('timer')).toHaveText(/^16:0/)
   expect(await page.evaluate(() => Reflect.get(window, 'focusAlerts'))).toEqual(['Focus time is up', 'Break allowance ended'])
   await page.reload()
-  await expect(page.getByRole('timer')).toHaveText(/^00:16:0/)
+  await expect(page.getByRole('timer')).toHaveText(/^16:0/)
   expect(await page.evaluate(() => Reflect.get(window, 'focusAlerts'))).toEqual([])
 })

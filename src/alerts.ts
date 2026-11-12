@@ -14,25 +14,37 @@ export async function prepareSound() {
   return audio
 }
 
-export async function playSound(sound: AlertSound) {
+export const soundPlayOptions = [1, 2, 3, 4, 5] as const
+
+export function soundPlayCount(value?: number) {
+  return soundPlayOptions.find(option => option === value) ?? 1
+}
+
+export async function playSound(sound: AlertSound, plays = 1) {
   const notes = sounds[sound].notes
   if (!notes.length) return
   const context = await prepareSound()
   if (!context) return
-  notes.forEach((frequency, index) => {
-    const start = context.currentTime + index * 0.19
-    const tone = context.createOscillator()
-    const volume = context.createGain()
-    tone.type = 'sine'
-    tone.frequency.value = frequency
-    volume.gain.setValueAtTime(0.001, start)
-    volume.gain.exponentialRampToValueAtTime(0.19, start + 0.025)
-    volume.gain.exponentialRampToValueAtTime(0.001, start + 0.36)
-    tone.connect(volume).connect(context.destination)
-    tone.start(start)
-    tone.stop(start + 0.37)
-    tone.onended = () => { tone.disconnect(); volume.disconnect() }
-  })
+  const startAt = context.currentTime
+  const spacing = 0.19
+  const playLength = (notes.length - 1) * spacing + 0.37
+  const playCount = soundPlayCount(plays)
+  for (let play = 0; play < playCount; play++) {
+    notes.forEach((frequency, index) => {
+      const start = startAt + play * (playLength + 0.45) + index * spacing
+      const tone = context.createOscillator()
+      const volume = context.createGain()
+      tone.type = 'sine'
+      tone.frequency.value = frequency
+      volume.gain.setValueAtTime(0.001, start)
+      volume.gain.exponentialRampToValueAtTime(0.19, start + 0.025)
+      volume.gain.exponentialRampToValueAtTime(0.001, start + 0.36)
+      tone.connect(volume).connect(context.destination)
+      tone.start(start)
+      tone.stop(start + 0.37)
+      tone.onended = () => { tone.disconnect(); volume.disconnect() }
+    })
+  }
 }
 
 let promptedOnStart = false

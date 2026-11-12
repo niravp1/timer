@@ -5,7 +5,7 @@ import { notifyTimer, playSound, prepareSound, requestNotificationsOnStart } fro
 import { hydrate, Persistence, type Journal } from './persistence'
 
 function announce(settings: Settings, event: Parameters<typeof notifyTimer>[0]) {
-  void playSound(settings.sound ?? 'chime').catch(() => {})
+  void playSound(settings.sound ?? 'chime', settings.soundPlays).catch(() => {})
   if (settings.notifications !== false) notifyTimer(event)
 }
 
