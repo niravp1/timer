@@ -66,7 +66,8 @@ dialog::backdrop { background: #090909a0; }
 .totals dd { margin: 4px 0 0; font-size: clamp(1rem, 4.2vw, 1.7rem); font-weight: 700; }
 .chart { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: clamp(0px, 1vw, 8px); }
 .chart-day { position: relative; min-width: 0; }
-.chart button { width: 100%; display: grid; gap: 8px; justify-items: center; grid-template-rows: minmax(32px, auto) 120px auto; font-size: clamp(.66rem, 2.7vw, .88rem); background: none; border: 0; border-radius: 8px; color: inherit; padding: 6px 0; }
+.chart button { width: 100%; display: grid; gap: 8px; justify-items: center; grid-template-rows: 3.5em 120px auto; font-size: clamp(.66rem, 2.7vw, .88rem); background: none; border: 0; border-radius: 8px; color: inherit; padding: 6px 0; }
+.chart-total { align-self: end; line-height: 1.15; font-variant-numeric: tabular-nums; }
 .chart button:hover { background: #292929; }
 .chart-tooltip {
   position: absolute; z-index: 2; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%);

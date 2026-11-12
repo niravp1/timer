@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react'
 import { Temporal } from '@js-temporal/polyfill'
 import { span, total, type Cycle, type Tracker } from './engine'
 import { breakAllowances, report, weekOf } from './report'
-import { durationClockText, duration, preciseDuration } from './time'
+import { durationClockText, preciseDuration } from './time'
 
 const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const dayLabel = (day: Temporal.PlainDate) => day.toLocaleString(undefined, { month: 'short', day: 'numeric' })
@@ -15,13 +15,32 @@ function Totals({ focus, included, extra }: { focus: number; included: number; e
   </dl>
 }
 
+function TrackedTotals({ focus, included, extra, tracked, away }: {
+  focus: number; included: number; extra: number; tracked: number; away: number
+}) {
+  return <>
+    <Totals focus={focus} included={included} extra={extra} />
+    <dl className="details time-accounting">
+      <div><dt>Total tracked time</dt><dd>{preciseDuration(tracked)}</dd></div>
+      {away > 0 && <div><dt>Away · timer paused</dt><dd>{preciseDuration(away)}</dd></div>}
+    </dl>
+  </>
+}
+
 export function Metrics({ state, at }: { state: Tracker; at: number }) {
   const [week, setWeek] = useState(() => weekOf(at, state.settings.zone))
   const [day, setDay] = useState<Temporal.PlainDate>()
   const [selected, setSelected] = useState<string>()
   const days = weekdays.map((_, index) => week.add({ days: index }))
   const reports = days.map(date => report(state, date, at))
-  const maximum = Math.max(1, ...reports.map(({ focus, included, extra }) => focus + included + extra))
+  const maximum = Math.max(1, ...reports.map(({ tracked }) => tracked))
+  const weekly = reports.reduce((sum, item) => ({
+    focus: sum.focus + item.focus,
+    included: sum.included + item.included,
+    extra: sum.extra + item.extra,
+    tracked: sum.tracked + item.tracked,
+    away: sum.away + item.away,
+  }), { focus: 0, included: 0, extra: 0, tracked: 0, away: 0 })
   const daily = day ? report(state, day, at) : undefined
   const cycle = daily?.entries.find(entry => entry.cycle.id === selected)?.cycle
   const formatter = new Intl.DateTimeFormat(undefined, {
@@ -139,11 +158,7 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
   if (day && daily) return <section className="report">
     <button className="quiet" onClick={() => setDay(undefined)}>← Week</button>
     <h1>{day.toLocaleString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h1>
-    <Totals {...daily} />
-    <dl className="details day-accounting">
-      <div><dt>Total tracked time</dt><dd>{preciseDuration(daily.tracked)}</dd></div>
-      {daily.away > 0 && <div><dt>Away · timer paused</dt><dd>{preciseDuration(daily.away)}</dd></div>}
-    </dl>
+    <TrackedTotals {...daily} />
     <p className="split">Completing a focus goal earns break time. Unused time can cover a later pause or break that day. Time past your balance is extra.</p>
     <h2>Activity</h2>
     {daily.entries.length ? <ul className="activity-list">{daily.entries.map(entry)}</ul> : <p>No activity for this day.</p>}
@@ -157,23 +172,20 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
         <button className="quiet" aria-label="Next week" onClick={() => setWeek(week.add({ weeks: 1 }))}>→</button>
       </div>
     </div>
-    <Totals focus={reports.reduce((sum, item) => sum + item.focus, 0)}
-      included={reports.reduce((sum, item) => sum + item.included, 0)}
-      extra={reports.reduce((sum, item) => sum + item.extra, 0)} />
-    <h2>Time breakdown by day</h2>
+    <TrackedTotals {...weekly} />
+    <h2>Tracked time by day</h2>
     <ul className="chart-legend">
       <li><span className="chart-included" />Focus + included breaks</li>
       <li><span className="chart-extra" />Extra time</li>
     </ul>
-    <div className="chart">{reports.map(({ focus, included, pauses, pauseIncluded, overage, extra }, index) => {
+    <div className="chart">{reports.map(({ focus, included, pauses, pauseIncluded, overage, extra, tracked, away }, index) => {
       const covered = focus + included
-      const tracked = covered + extra
       const tooltipId = `day-breakdown-${index}`
       return <div className="chart-day" key={weekdays[index]}>
         <button aria-describedby={tooltipId}
-          aria-label={`${weekdays[index]}, ${dayLabel(days[index])}, ${duration(covered)} focus and included breaks, ${duration(extra)} extra time`}
+          aria-label={`${weekdays[index]}, ${dayLabel(days[index])}, ${preciseDuration(tracked)} tracked`}
           onClick={() => setDay(days[index])}>
-          <span>{duration(tracked)}</span>
+          <span className="chart-total">{preciseDuration(tracked)}</span>
           <span className="bar-track" aria-hidden="true">
             <span className="bar" style={{ height: `${100 * tracked / maximum}%` }}>
               <span className="chart-extra" style={{ flexGrow: extra }} />
@@ -187,6 +199,7 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
           <span>Included break <strong>{durationClockText(included)}</strong></span>
           <span>Extra pause <strong>{durationClockText(pauses - pauseIncluded)}</strong></span>
           <span>Extra break <strong>{durationClockText(overage)}</strong></span>
+          {away > 0 && <span>Away <strong>{durationClockText(away)}</strong></span>}
         </div>
       </div>
     })}</div>
