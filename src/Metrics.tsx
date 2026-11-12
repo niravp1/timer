@@ -1,17 +1,17 @@
 import { useState } from 'react'
 import { Temporal } from '@js-temporal/polyfill'
-import { span, total, type Cycle, type Tracker } from './engine'
+import { span, total, type Tracker } from './engine'
 import { report, weekOf } from './report'
-import { durationClockText, duration } from './time'
+import { durationClockText, duration, preciseDuration } from './time'
 
 const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const dayLabel = (day: Temporal.PlainDate) => day.toLocaleString(undefined, { month: 'short', day: 'numeric' })
 
 function Totals({ focus, included, extra }: { focus: number; included: number; extra: number }) {
   return <dl className="totals">
-    <div><dt>Focused</dt><dd>{duration(focus)}</dd></div>
-    <div><dt>Break time</dt><dd>{duration(included)}</dd></div>
-    <div><dt>Extra time</dt><dd>{duration(extra)}</dd></div>
+    <div><dt>Focused</dt><dd>{preciseDuration(focus)}</dd></div>
+    <div><dt>Break time</dt><dd>{preciseDuration(included)}</dd></div>
+    <div><dt>Extra time</dt><dd>{preciseDuration(extra)}</dd></div>
   </dl>
 }
 
@@ -23,7 +23,7 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
   const reports = days.map(date => report(state, date, at))
   const maximum = Math.max(1, ...reports.map(({ focus, included, extra }) => focus + included + extra))
   const daily = day ? report(state, day, at) : undefined
-  const cycle = daily?.entries.find(entry => entry.id === selected)
+  const cycle = daily?.entries.find(entry => entry.cycle.id === selected)?.cycle
   const formatter = new Intl.DateTimeFormat(undefined, {
     timeZone: state.settings.zone, hour: 'numeric', minute: '2-digit', second: '2-digit',
   })
@@ -72,38 +72,35 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
       <ol className="intervals">
         {cycle.intervals.map(interval => <li key={interval.id} className={interval.kind}>
           <span><strong>{names[interval.kind]}</strong><small>{range(interval.start, interval.end)}{interval.quality === 'inferred' && ' · Estimated start'}</small></span>
-          <span>{duration(span(interval, at))}</span>
+          <span>{preciseDuration(span(interval, at))}</span>
         </li>)}
         {rest && <li className={overage > 0 ? 'manual_pause' : 'included_break'}>
           <span><strong>Break</strong><small>{range(rest.start, rest.end)}</small></span>
-          <span>{duration(elapsed)}</span>
+          <span>{preciseDuration(elapsed)}</span>
         </li>}
       </ol>
       <dl className="details session-notes">
-        <div><dt>Focus goal</dt><dd>{duration(cycle.target)}</dd></div>
-        <div><dt>Elapsed focus session</dt><dd>{duration(span(cycle, at))}</dd></div>
-        {rest && <div><dt>Break allowance</dt><dd>{duration(rest.allowance)}</dd></div>}
-        {paused > 0 && <div><dt>Extra from manual pauses</dt><dd>{duration(paused)}</dd></div>}
-        {overage > 0 && <div><dt>Extra from break overage</dt><dd>{duration(overage)}</dd></div>}
+        <div><dt>Focus goal</dt><dd>{preciseDuration(cycle.target)}</dd></div>
+        <div><dt>Elapsed focus session</dt><dd>{preciseDuration(span(cycle, at))}</dd></div>
+        {rest && <div><dt>Break allowance</dt><dd>{preciseDuration(rest.allowance)}</dd></div>}
+        {paused > 0 && <div><dt>Extra from manual pauses</dt><dd>{preciseDuration(paused)}</dd></div>}
+        {overage > 0 && <div><dt>Extra from break overage</dt><dd>{preciseDuration(overage)}</dd></div>}
       </dl>
     </section>
   }
 
-  function entry(cycle: Cycle) {
-    const paused = total(cycle, 'manual_pause', at)
+  function entry({ cycle, focus, pauses, rest: breakTime, overage, away }: ReturnType<typeof report>['entries'][number]) {
     const rest = cycle.rest
-    const breakTime = rest ? span(rest, at) : 0
-    const overage = rest ? Math.max(0, breakTime - rest.allowance) : 0
     return <li key={cycle.id}>
       <button className="entry" onClick={() => setSelected(cycle.id)}>
         <span className="entry-content">
           <span className="entry-line">
             <span><strong>Focus session</strong><small>{activityTime(cycle.start, cycle.end)}</small></span>
-            <span><strong>{duration(total(cycle, 'focus', at))} focused</strong>{paused > 0 && <small>{duration(paused)} paused</small>}</span>
+            <span><strong>{preciseDuration(focus)} focused</strong>{pauses > 0 && <small>{preciseDuration(pauses)} paused</small>}{away > 0 && <small>{preciseDuration(away)} away</small>}</span>
           </span>
-          {rest && <span className="entry-line">
+          {rest && breakTime > 0 && <span className="entry-line">
             <span>Break<small>{activityTime(rest.start, rest.end)}</small></span>
-            <span>{duration(breakTime)}{overage > 0 && <small>{duration(overage)} over allowance</small>}</span>
+            <span>{preciseDuration(breakTime)}{overage > 0 && <small>{preciseDuration(overage)} over allowance</small>}</span>
           </span>}
         </span>
         <span className="entry-arrow" aria-hidden="true">›</span>
@@ -115,7 +112,11 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
     <button className="quiet" onClick={() => setDay(undefined)}>← Week</button>
     <h1>{day.toLocaleString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h1>
     <Totals {...daily} />
-    <p className="split">Break time counts up to your allowance. Extra time includes manual pauses and break time past the allowance.</p>
+    <dl className="details day-accounting">
+      <div><dt>Away</dt><dd>{preciseDuration(daily.away)}</dd></div>
+      <div><dt>Total recorded time</dt><dd>{preciseDuration(daily.recorded)}</dd></div>
+    </dl>
+    <p className="split">Break time counts up to your allowance. Extra time includes manual pauses and break time past the allowance. Away is shown separately and included in total recorded time.</p>
     <h2>Activity</h2>
     {daily.entries.length ? <ul className="activity-list">{daily.entries.map(entry)}</ul> : <p>No activity for this day.</p>}
   </section>

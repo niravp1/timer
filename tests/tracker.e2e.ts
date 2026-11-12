@@ -37,6 +37,8 @@ test('counts focus, preserves remaining time on reload, and saves an early sessi
   await expect(page.getByText(/Extra time includes manual pauses/)).toBeVisible()
   await expect(page.getByRole('button', { name: /Focus session.*focused/ })).toBeVisible()
   await expect(page.locator('.totals')).toContainText('Extra time2m')
+  await expect(page.locator('.day-accounting')).toContainText('Away1h')
+  await expect(page.locator('.day-accounting')).toContainText('Total recorded time1h 7m')
   await page.locator('.entry').click()
   await expect(page.getByRole('heading', { name: 'Session timeline' })).toBeVisible()
   await expect(page.getByText('System interruption', { exact: true }).first()).toBeVisible()

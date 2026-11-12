@@ -105,7 +105,7 @@ describe('focus and break accounting', () => {
     let state = step(step(empty(), 'start', '19:00'), 'page_closed', '19:05')
     state = recover(state, at('09:00', '2026-11-10'), crypto.randomUUID())
     expect(total(activity(state), 'system_interruption', at('20:30'))).toBe(85 * minute)
-    expect(sum(state)).toMatchObject({ focus: 5 * minute, overage: 0 })
+    expect(sum(state)).toMatchObject({ focus: 5 * minute, overage: 0, away: 85 * minute, recorded: 90 * minute })
   })
 
   it('T10 ends partial work or break and leaves gaps untracked', () => {
@@ -129,9 +129,9 @@ describe('focus and break accounting', () => {
     const cycle = activity(state)
     cycle.rest!.start = at('23:50')
     cycle.rest!.end = at('00:15', '2026-11-10')
-    expect(sum(state)).toMatchObject({ rest: 10 * minute, included: 10 * minute, overage: 0 })
+    expect(sum(state)).toMatchObject({ rest: 10 * minute, included: 10 * minute, overage: 0, entries: [{ rest: 10 * minute }] })
     expect(report(state, localDay(at('09:00', '2026-11-10'), zone), at('09:00', '2026-11-10')))
-      .toMatchObject({ rest: 15 * minute, included: 5 * minute, overage: 10 * minute })
+      .toMatchObject({ rest: 15 * minute, included: 5 * minute, overage: 10 * minute, entries: [{ rest: 15 * minute }] })
     expect(weekOf(at('10:00', '2026-11-15'), zone).toString()).toBe('2026-11-09')
   })
 

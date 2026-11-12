@@ -36,3 +36,9 @@ export function duration(ms: number) {
   if (mins === 0 && ms > 0) return `${Math.floor(ms / 1000)}s`
   return mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`
 }
+
+export function preciseDuration(ms: number) {
+  if (ms < minute) return duration(ms)
+  const seconds = Math.floor(ms / 1000) % 60
+  return seconds ? `${duration(ms)} ${seconds}s` : duration(ms)
+}
