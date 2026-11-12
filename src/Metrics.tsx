@@ -1,6 +1,6 @@
 import { Fragment, useState } from 'react'
 import { Temporal } from '@js-temporal/polyfill'
-import { span, total, type Tracker } from './engine'
+import { span, total, type Cycle, type Tracker } from './engine'
 import { breakAllowances, report, weekOf } from './report'
 import { durationClockText, duration, preciseDuration } from './time'
 
@@ -36,6 +36,12 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
     return label === endLabel ? label : `${label} – ${endLabel}`
   }
   const range = (start: number, end?: number) => `${clock(start)} – ${end === undefined ? 'In progress' : clock(end)}`
+  const pauseStatus = (cycle: Cycle) => {
+    const interval = cycle.intervals.at(-1)
+    if (!interval) return 'Paused'
+    const label = interval.kind === 'system_interruption' ? 'Away' : 'Paused'
+    return `${label} since ${shortClock.format(interval.start)}`
+  }
   const names = { focus: 'Focus', manual_pause: 'Manual pause', system_interruption: 'System interruption' }
 
   if (cycle) {
@@ -54,7 +60,7 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
     const status = cycle.status === 'completed' ? 'Focus goal reached'
       : cycle.reason === 'daily_cutoff' ? 'Ended at daily cutoff'
       : cycle.status === 'ended_early' ? 'Ended early'
-      : cycle.status === 'paused' ? (cycle.intervals.at(-1)?.kind === 'system_interruption' ? 'Paused while away' : 'Paused') : 'In progress'
+      : cycle.status === 'paused' ? pauseStatus(cycle) : 'In progress'
 
     return <section className="report session-report">
       <button className="quiet" onClick={() => setSelected(undefined)}>← Day</button>
@@ -94,7 +100,7 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
       </ol>
       <dl className="details session-notes">
         <div><dt>Focus goal</dt><dd>{preciseDuration(cycle.target)}</dd></div>
-        <div><dt>Elapsed focus session</dt><dd>{preciseDuration(span(cycle, at))}</dd></div>
+        <div><dt>Session span{away > 0 && ' (includes away)'}</dt><dd>{preciseDuration(span(cycle, at))}</dd></div>
         {rest && <div><dt>Break allowance</dt><dd>{preciseDuration(allowed)}</dd></div>}
         {pauseIncluded > 0 && <div><dt>Break time from manual pauses</dt><dd>{preciseDuration(pauseIncluded)}</dd></div>}
         {pauseExtra > 0 && <div><dt>Extra from manual pauses</dt><dd>{preciseDuration(pauseExtra)}</dd></div>}
@@ -110,7 +116,7 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
         <span className="entry-content">
           <span className="entry-line">
             <span><strong>Focus session</strong><small>{cycle.status === 'paused'
-              ? `${shortClock.format(cycle.start)} · ${cycle.intervals.at(-1)?.kind === 'system_interruption' ? 'Paused while away' : 'Paused'}`
+              ? `${shortClock.format(cycle.start)} · ${pauseStatus(cycle)}`
               : activityTime(cycle.start, cycle.end)}</small></span>
             <span><strong>{preciseDuration(focus)} focused</strong>{away > 0 && <small>{preciseDuration(away)} away</small>}</span>
           </span>
@@ -135,10 +141,10 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
     <h1>{day.toLocaleString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h1>
     <Totals {...daily} />
     <dl className="details day-accounting">
-      <div><dt>Away</dt><dd>{preciseDuration(daily.away)}</dd></div>
-      <div><dt>Total recorded time</dt><dd>{preciseDuration(daily.recorded)}</dd></div>
+      <div><dt>Total tracked time</dt><dd>{preciseDuration(daily.tracked)}</dd></div>
+      {daily.away > 0 && <div><dt>Away · timer paused</dt><dd>{preciseDuration(daily.away)}</dd></div>}
     </dl>
-    <p className="split">Completing a focus goal earns break time. Unused time can cover a later pause or break that day. Time past your balance is extra. Away counts only toward total recorded time.</p>
+    <p className="split">Completing a focus goal earns break time. Unused time can cover a later pause or break that day. Time past your balance is extra.</p>
     <h2>Activity</h2>
     {daily.entries.length ? <ul className="activity-list">{daily.entries.map(entry)}</ul> : <p>No activity for this day.</p>}
   </section>

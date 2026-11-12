@@ -127,7 +127,7 @@ describe('focus and break accounting', () => {
     let state = step(step(empty(), 'start', '19:00'), 'page_closed', '19:05')
     state = recover(state, at('09:00', '2026-11-10'), crypto.randomUUID())
     expect(total(activity(state), 'system_interruption', at('20:30'))).toBe(85 * minute)
-    expect(sum(state)).toMatchObject({ focus: 5 * minute, overage: 0, away: 85 * minute, recorded: 90 * minute })
+    expect(sum(state)).toMatchObject({ focus: 5 * minute, overage: 0, away: 85 * minute, tracked: 5 * minute })
   })
 
   it('T10 ends partial work or break and leaves gaps untracked', () => {

@@ -71,5 +71,5 @@ export function report(state: Tracker, day: Temporal.PlainDate, now: number) {
     })
   })
   const extra = totals.pauses - totals.pauseIncluded + totals.overage
-  return { ...totals, extra, recorded: totals.focus + totals.included + extra + totals.away, entries }
+  return { ...totals, extra, tracked: totals.focus + totals.included + extra, entries }
 }
