@@ -14,6 +14,23 @@ export async function prepareSound() {
   return audio
 }
 
+export async function playButtonClick() {
+  const context = await prepareSound()
+  if (!context) return
+  const at = context.currentTime
+  const tone = context.createOscillator()
+  const volume = context.createGain()
+  tone.frequency.setValueAtTime(850, at)
+  tone.frequency.exponentialRampToValueAtTime(380, at + 0.035)
+  volume.gain.setValueAtTime(0.001, at)
+  volume.gain.linearRampToValueAtTime(0.045, at + 0.002)
+  volume.gain.exponentialRampToValueAtTime(0.001, at + 0.035)
+  tone.connect(volume).connect(context.destination)
+  tone.onended = () => { tone.disconnect(); volume.disconnect() }
+  tone.start(at)
+  tone.stop(at + 0.04)
+}
+
 export const soundPlayOptions = [1, 2, 3, 4, 5] as const
 
 export function soundPlayCount(value?: number) {

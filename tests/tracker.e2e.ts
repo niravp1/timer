@@ -179,3 +179,31 @@ test('uses unused break time for a pause and shows it in daily activity', async 
   await expect(page.locator('.totals')).toContainText('Extra time0m')
   await expect(page.getByRole('button', { name: /Manual pause.*5m included/ })).toBeVisible()
 })
+
+test('Space and mouse activate the timer with one click sound each', async ({ page }) => {
+  await page.evaluate(() => {
+    let count = 0
+    Reflect.set(window, 'buttonClicks', () => count)
+    const start = OscillatorNode.prototype.start
+    OscillatorNode.prototype.start = function (when) {
+      count++
+      start.call(this, when)
+    }
+  })
+  await expect(page.getByRole('button', { name: 'Start', exact: true })).toBeVisible()
+  await page.keyboard.press('Space')
+  const pause = page.getByRole('button', { name: 'Pause', exact: true })
+  await expect(pause).toBeVisible()
+  await pause.click()
+  await expect(page.getByRole('button', { name: 'Resume', exact: true })).toBeVisible()
+  await page.keyboard.down('Space')
+  await page.keyboard.down('Space')
+  await page.keyboard.up('Space')
+  await expect(pause).toBeVisible()
+  await expect.poll(() => page.evaluate(() => Reflect.get(window, 'buttonClicks')())).toBe(3)
+  await page.getByLabel('Menu').click()
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await page.getByLabel('Focus target (minutes)').focus()
+  await page.keyboard.press('Space')
+  await expect.poll(() => page.evaluate(() => Reflect.get(window, 'buttonClicks')())).toBe(3)
+})

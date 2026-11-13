@@ -9,7 +9,7 @@ import { breakAllowances } from './report'
 import { Metrics } from './Metrics'
 import { Profile, RecoveryLink } from './Profile'
 import { useTracker } from './useTracker'
-import { playSound, soundPlayCount, soundPlayOptions, sounds, type AlertSound } from './alerts'
+import { playButtonClick, playSound, soundPlayCount, soundPlayOptions, sounds, type AlertSound } from './alerts'
 import './style.css'
 
 function timerDisplay(state: Tracker, at: number) {
@@ -32,6 +32,24 @@ function tabTitle(state: Tracker, at: number) {
 function Focus({ state, at, dispatch }: {
   state: Tracker; at: number; dispatch: ReturnType<typeof useTracker>['dispatch']
 }) {
+  const button = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    function handleSpace(event: KeyboardEvent) {
+      if (event.code !== 'Space' || event.defaultPrevented || event.isComposing ||
+          event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
+          document.querySelector('dialog[open], .app-menu[open]')) return
+
+      const target = event.target
+      if (target instanceof Element && target !== button.current &&
+          target.closest('button, input, textarea, select, a, summary, [contenteditable], [tabindex], [role="button"]')) return
+
+      event.preventDefault()
+      if (!event.repeat) button.current?.click()
+    }
+
+    window.addEventListener('keydown', handleSpace)
+    return () => window.removeEventListener('keydown', handleSpace)
+  }, [])
   const { mode, interval, rest, elapsed, digits } = timerDisplay(state, at)
   const paused = mode === 'focus_paused' ? interval : undefined
   const allowances = rest || paused ? breakAllowances(state) : undefined
@@ -49,7 +67,8 @@ function Focus({ state, at, dispatch }: {
     <h1 aria-live="polite">{status}</h1>
     <div className={rest && digits.length > 5 ? 'digits break-digits' : 'digits'} role="timer">{digits}</div>
     <div className="timer-note">{extra > 0 ? `+${breakClockText(extra)} extra` : pauseLeft > 0 ? `${breakClockText(pauseLeft)} of included break left` : ''}</div>
-    <button className="primary timer-action" disabled={locked} onClick={() => {
+    <button ref={button} className="primary timer-action" aria-keyshortcuts="Space" disabled={locked} onClick={() => {
+      void playButtonClick().catch(() => {})
       dispatch(label === 'Start' ? 'start' : label === 'Pause' ? 'pause' : 'resume')
     }}>{label}</button>
   </section>
