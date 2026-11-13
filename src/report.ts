@@ -23,9 +23,10 @@ export function breakAllowances({ blocks, settings: { zone } }: Tracker) {
   }
 
   for (const block of blocks) {
+    available.clear()
     for (const cycle of block.cycles) {
       for (const interval of cycle.intervals) {
-        if (interval.kind === 'manual_pause') useBreak(interval)
+        if (interval.kind !== 'focus') useBreak(interval)
       }
       if (cycle.rest) useBreak(cycle.rest, cycle.rest.allowance)
     }
@@ -40,23 +41,28 @@ export function report(state: Tracker, day: Temporal.PlainDate, now: number) {
   const to = localInstant(day.add({ days: 1 }), zone)
   const overlap = (start: number, end: number) => Math.max(0, Math.min(to, end) - Math.max(from, start))
   const allocations = breakAllowances(state)
-  const totals = { focus: 0, rest: 0, included: 0, pauses: 0, pauseIncluded: 0, overage: 0, away: 0 }
+  const totals = { focus: 0, rest: 0, included: 0, pauses: 0, pauseIncluded: 0, overage: 0, away: 0, awayIncluded: 0 }
   const entries = state.blocks.flatMap(block => {
     const until = Math.min(now, block.cutoff)
     return block.cycles.flatMap(cycle => {
       const end = cycle.rest ? cycle.rest.end ?? until : cycle.end ?? until
       if (cycle.start >= to || (end <= from && cycle.start < from)) return []
 
-      const elapsed = { focus: 0, rest: 0, included: 0, pauses: 0, pauseIncluded: 0, overage: 0, away: 0 }
+      const elapsed = { focus: 0, rest: 0, included: 0, pauses: 0, pauseIncluded: 0, overage: 0, away: 0, awayIncluded: 0 }
       for (const interval of cycle.intervals) {
         const ms = overlap(interval.start, interval.end ?? until)
         if (interval.kind === 'focus') elapsed.focus += ms
-        if (interval.kind === 'manual_pause') {
-          elapsed.pauses += ms
-          elapsed.pauseIncluded += overlap(interval.start, Math.min(interval.end ?? until,
+        if (interval.kind !== 'focus') {
+          const included = overlap(interval.start, Math.min(interval.end ?? until,
             interval.start + (allocations.get(interval.id) ?? 0)))
+          if (interval.kind === 'manual_pause') {
+            elapsed.pauses += ms
+            elapsed.pauseIncluded += included
+          } else {
+            elapsed.away += ms
+            elapsed.awayIncluded += included
+          }
         }
-        if (interval.kind === 'system_interruption') elapsed.away += ms
       }
       if (cycle.rest) {
         const { start, end, id } = cycle.rest
@@ -65,11 +71,11 @@ export function report(state: Tracker, day: Temporal.PlainDate, now: number) {
         elapsed.included = overlap(start, Math.min(start + allowance, end ?? until))
         elapsed.overage = overlap(start + allowance, end ?? until)
       }
-      elapsed.included += elapsed.pauseIncluded
+      elapsed.included += elapsed.pauseIncluded + elapsed.awayIncluded
       for (const kind of Object.keys(totals) as (keyof typeof totals)[]) totals[kind] += elapsed[kind]
       return [{ cycle, ...elapsed }]
     })
   })
-  const extra = totals.pauses - totals.pauseIncluded + totals.overage
+  const extra = totals.pauses - totals.pauseIncluded + totals.away - totals.awayIncluded + totals.overage
   return { ...totals, extra, tracked: totals.focus + totals.included + extra, entries }
 }

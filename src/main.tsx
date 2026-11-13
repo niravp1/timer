@@ -33,10 +33,11 @@ function Focus({ state, at, dispatch }: {
   state: Tracker; at: number; dispatch: ReturnType<typeof useTracker>['dispatch']
 }) {
   const { mode, interval, rest, elapsed, digits } = timerDisplay(state, at)
-  const allowances = rest || interval?.kind === 'manual_pause' ? breakAllowances(state) : undefined
+  const paused = mode === 'focus_paused' ? interval : undefined
+  const allowances = rest || paused ? breakAllowances(state) : undefined
   const allowance = rest ? allowances?.get(rest.id) ?? 0 : 0
-  const pauseAllowance = interval?.kind === 'manual_pause' ? allowances?.get(interval.id) ?? 0 : 0
-  const pauseElapsed = interval?.kind === 'manual_pause' ? span(interval, at) : 0
+  const pauseAllowance = paused ? allowances?.get(paused.id) ?? 0 : 0
+  const pauseElapsed = paused ? span(paused, at) : 0
   const pauseLeft = Math.max(0, pauseAllowance - pauseElapsed)
   const extra = rest ? elapsed - allowance : pauseElapsed - pauseAllowance
   const locked = (mode === 'idle' || mode === 'break_running') && startLocked(state, at)

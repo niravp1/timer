@@ -49,7 +49,7 @@ The signed-in user can open **Menu → Profile** to change their picture and set
 
 ## How tracking and sync work
 
-Each completed focus goal earns the configured break allowance. Unused time covers later breaks or manual pauses that day. Only time beyond the earned balance counts as Extra.
+Each completed focus goal earns the configured break allowance. Unused time covers later breaks or pauses, including time away, until End Session or the daily cutoff. Ending the session saves the activity and clears the unused allowance. Only time beyond the earned balance counts as Extra.
 
 - Start during a break closes that break and starts the next focus cycle at the same timestamp. Each cycle snapshots its focus target and break allowance. Each work block snapshots the time zone and cutoff at its start. Metrics use the current reporting time zone.
 - Closing or reloading during focus records the observed `pagehide` boundary when the browser delivers it. If the browser crashes or kills the page, recovery uses the last saved checkpoint and marks the boundary as inferred. The five-second checkpoint cadence can be delayed by browser throttling. A cloud-only recovery uses the most recent acknowledged transition. Breaks continue across closure and stop at the exact cutoff, reconciled when the browser returns.
