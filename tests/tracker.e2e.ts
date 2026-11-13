@@ -41,9 +41,13 @@ test('counts focus, preserves remaining time on reload, and saves an early sessi
   await expect(page.getByRole('button', { name: /Focus session.*focused/ })).toBeVisible()
   await expect(page.locator('.totals')).toContainText('Extra time1h 2m')
   await expect(page.locator('.time-accounting')).toContainText('Total tracked time1h 7m')
+  const pauseRow = page.locator('.entry-line').filter({ hasText: 'Auto-pause' })
+  await expect(pauseRow).toContainText('App closed or interrupted')
+  await expect(pauseRow).toContainText('extra')
+  await expect(pauseRow.locator('span > span')).toHaveCount(1)
   await page.locator('.entry').click()
   await expect(page.getByRole('heading', { name: 'Session timeline' })).toBeVisible()
-  await expect(page.getByText('Paused while away', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('Auto-pause', { exact: true }).first()).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
     await page.evaluate(() => window.innerWidth),
   )

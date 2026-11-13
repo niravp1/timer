@@ -56,10 +56,10 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
   const pauseStatus = (cycle: Cycle) => {
     const interval = cycle.intervals.at(-1)
     if (!interval) return 'Paused'
-    const label = interval.kind === 'system_interruption' ? 'Away' : 'Paused'
+    const label = interval.kind === 'system_interruption' ? 'Auto-paused' : 'Paused'
     return `${label} since ${shortClock.format(interval.start)}`
   }
-  const names = { focus: 'Focus', manual_pause: 'Manual pause', system_interruption: 'Paused while away' }
+  const names = { focus: 'Focus', manual_pause: 'Manual pause', system_interruption: 'Auto-pause' }
 
   if (cycle) {
     const focused = total(cycle, 'focus', at)
@@ -137,12 +137,15 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
             <span><strong>{preciseDuration(focus)} focused</strong></span>
           </span>
           {[{ label: 'Manual pause', elapsed: pauses, included: pauseIncluded },
-            { label: 'Paused while away', elapsed: away, included: awayIncluded }].map(({ label, elapsed, included }) =>
+            { label: 'Auto-pause', elapsed: away, included: awayIncluded, detail: 'App closed or interrupted' }].map(({ label, elapsed, included, detail }) =>
               elapsed > 0 && <span className="entry-line" key={label}>
-                <span>{label}<small>{included > 0 && `${preciseDuration(included)} included`}
-                  {included > 0 && elapsed > included && ' · '}
-                  {elapsed > included && `${preciseDuration(elapsed - included)} extra`}</small></span>
-                <span>{preciseDuration(elapsed)}</span>
+                <span>{label}{detail && <small>{detail}</small>}</span>
+                <span>
+                  {included > 0 && <span>{preciseDuration(included)} included</span>}
+                  {elapsed > included && (included > 0
+                    ? <small>{preciseDuration(elapsed - included)} extra</small>
+                    : <span>{preciseDuration(elapsed)} extra</span>)}
+                </span>
               </span>)}
           {rest && breakTime > 0 && <span className="entry-line">
             <span>Break<small>{activityTime(rest.start, rest.end)}</small></span>
