@@ -180,7 +180,7 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
       <li><span className="chart-included" />Focus + included breaks</li>
       <li><span className="chart-extra" />Extra time</li>
     </ul>
-    <div className="chart">{reports.map(({ focus, included, overage, extra, tracked }, index) => {
+    <div className="chart">{reports.map(({ focus, included, extra, tracked }, index) => {
       const covered = focus + included
       const tooltipId = `day-breakdown-${index}`
       return <div className="chart-day" key={weekdays[index]}>
@@ -197,10 +197,9 @@ export function Metrics({ state, at }: { state: Tracker; at: number }) {
           <span>{weekdays[index]}</span>
         </button>
         <div className="chart-tooltip" role="tooltip" id={tooltipId}>
-          <span>Focused <strong>{durationClockText(focus)}</strong></span>
-          <span>Included break <strong>{durationClockText(included)}</strong></span>
-          <span>Extra pause <strong>{durationClockText(extra - overage)}</strong></span>
-          <span>Extra break <strong>{durationClockText(overage)}</strong></span>
+          <span>Focus <strong>{durationClockText(focus)}</strong></span>
+          <span>Break <strong>{durationClockText(included)}</strong></span>
+          <span>Extra time <strong>{durationClockText(extra)}</strong></span>
         </div>
       </div>
     })}</div>

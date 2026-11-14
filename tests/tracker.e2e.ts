@@ -73,7 +73,9 @@ test('counts break up across reload and switches to the next focus with Start', 
   await expect(monday).toBeVisible()
   await expect(monday.locator('.bar > span')).toHaveCount(2)
   await monday.focus()
-  await expect(page.getByRole('tooltip')).toContainText('Included break 00:15:00')
+  await expect(page.getByRole('tooltip').locator(':scope > span')).toHaveText([
+    /^Focus 01:00:0[01]$/, 'Break 00:15:00', /^Extra time 01:15:5[6-9]$/,
+  ])
   await expect(page.locator('.totals')).toContainText('Break time15m')
   await expect(page.locator('.totals')).toContainText('Extra time1h 15m')
   const tracked = await monday.locator('.chart-total').innerText()
