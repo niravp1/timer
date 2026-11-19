@@ -51,6 +51,7 @@ function Focus({ state, at, dispatch }: {
     return () => window.removeEventListener('keydown', handleSpace)
   }, [])
   const { mode, interval, rest, elapsed, digits } = timerDisplay(state, at)
+  const cycle = current(state).cycle
   const paused = mode === 'focus_paused' ? interval : undefined
   const allowances = rest || paused ? breakAllowances(state) : undefined
   const allowance = rest ? allowances?.get(rest.id) ?? 0 : 0
@@ -63,10 +64,17 @@ function Focus({ state, at, dispatch }: {
   const status = mode === 'break_running' ? 'Break'
     : mode === 'focus_paused' ? (interval?.kind === 'system_interruption' ? 'Paused while away' : 'Paused')
     : locked ? 'Finished for today' : 'Focus'
+  const showExtra = !!paused && extra > 0
+  const primaryDigits = showExtra ? breakClockText(extra) : digits
+  const remaining = cycle ? cycle.target - total(cycle, 'focus', at) : state.settings.target
+  const note = showExtra
+    ? (remaining < 59 * minute ? `${digits} focus remaining` : '')
+    : extra > 0 ? `+${breakClockText(extra)} extra`
+    : pauseLeft > 0 ? `${breakClockText(pauseLeft)} of included break left` : ''
   return <section className="timer-panel" aria-label="Focus timer">
-    <h1 aria-live="polite">{status}</h1>
-    <div className={rest && digits.length > 5 ? 'digits break-digits' : 'digits'} role="timer">{digits}</div>
-    <div className="timer-note">{extra > 0 ? `+${breakClockText(extra)} extra` : pauseLeft > 0 ? `${breakClockText(pauseLeft)} of included break left` : ''}</div>
+    <h1 aria-live="polite">{showExtra ? `${status} · Extra time` : status}</h1>
+    <div className={(rest || showExtra) && primaryDigits.length > 5 ? 'digits break-digits' : 'digits'} role="timer">{primaryDigits}</div>
+    <div className="timer-note">{note}</div>
     <button ref={button} className="primary timer-action" aria-keyshortcuts="Space" disabled={locked} onClick={() => {
       void playButtonClick().catch(() => {})
       dispatch(label === 'Start' ? 'start' : label === 'Pause' ? 'pause' : 'resume')
